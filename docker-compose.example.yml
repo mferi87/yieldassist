@@ -1,0 +1,68 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: yieldassist-db
+    environment:
+      POSTGRES_USER: yieldassist
+      POSTGRES_PASSWORD: yieldassist_dev
+      POSTGRES_DB: yieldassist
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U yieldassist" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: yieldassist-backend
+    environment:
+      DATABASE_URL: postgresql://yieldassist:yieldassist_dev@db:5432/yieldassist
+      SECRET_KEY: dev-secret-key-change-in-production
+      CORS_ORIGINS: http://localhost:5173
+      # Default Admin (created on first run)
+      ADMIN_EMAIL: admin@yieldassist.local
+      ADMIN_PASSWORD: changeme123
+      ADMIN_NAME: Admin
+      # Email Settings
+      REQUIRE_EMAIL_VERIFICATION: "false"
+      # Mail Server (optional - uncomment to enable)
+      # MAIL_SERVER: smtp.gmail.com
+      # MAIL_PORT: 587
+      # MAIL_USERNAME: your-email@gmail.com
+      # MAIL_PASSWORD: your-app-password
+      # MAIL_FROM: noreply@yieldassist.net
+      # MAIL_TLS: "true"
+      # MAIL_SSL: "false"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: yieldassist-frontend
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    command: npm run dev -- --host 0.0.0.0
+
+volumes:
+  postgres_data:

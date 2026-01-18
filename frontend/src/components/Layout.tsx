@@ -1,0 +1,103 @@
+import { Outlet, NavLink, useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { useAuthStore } from '../store/authStore'
+import { LayoutGrid, Layers, Sprout, LogOut, User, ChevronDown } from 'lucide-react'
+import { useState } from 'react'
+
+export default function Layout() {
+    const { t } = useTranslation()
+    const { user, logout } = useAuthStore()
+    const { gardenId } = useParams()
+    const navigate = useNavigate()
+    const [showUserMenu, setShowUserMenu] = useState(false)
+
+    const handleLogout = () => {
+        logout()
+        navigate('/login')
+    }
+
+    const navItems = gardenId
+        ? [
+            { to: `/garden/${gardenId}`, icon: LayoutGrid, label: t('nav.overview') },
+            { to: `/garden/${gardenId}/beds`, icon: Layers, label: t('nav.beds') },
+            { to: `/garden/${gardenId}/crops`, icon: Sprout, label: t('nav.crops') },
+        ]
+        : []
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-earth-50">
+            {/* Header */}
+            <header className="bg-white/80 backdrop-blur-md border-b border-primary-100 sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex items-center justify-between h-16">
+                        {/* Logo */}
+                        <NavLink to="/" className="flex items-center gap-2 group">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg group-hover:shadow-primary-200 transition-shadow">
+                                <Sprout className="w-6 h-6 text-white" />
+                            </div>
+                            <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent">
+                                YieldAssist
+                            </span>
+                        </NavLink>
+
+                        {/* Navigation */}
+                        {navItems.length > 0 && (
+                            <nav className="flex items-center gap-1">
+                                {navItems.map(({ to, icon: Icon, label }) => (
+                                    <NavLink
+                                        key={to}
+                                        to={to}
+                                        end={to === `/garden/${gardenId}`}
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${isActive
+                                                ? 'bg-primary-100 text-primary-700'
+                                                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                            }`
+                                        }
+                                    >
+                                        <Icon className="w-5 h-5" />
+                                        {label}
+                                    </NavLink>
+                                ))}
+                            </nav>
+                        )}
+
+                        {/* User Menu */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowUserMenu(!showUserMenu)}
+                                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
+                                    <User className="w-4 h-4 text-primary-600" />
+                                </div>
+                                <span className="text-sm font-medium text-gray-700">{user?.name}</span>
+                                <ChevronDown className="w-4 h-4 text-gray-400" />
+                            </button>
+
+                            {showUserMenu && (
+                                <>
+                                    <div className="fixed inset-0" onClick={() => setShowUserMenu(false)} />
+                                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                        >
+                                            <LogOut className="w-4 h-4" />
+                                            {t('auth.logout')}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            {/* Main Content */}
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <Outlet />
+            </main>
+        </div>
+    )
+}
