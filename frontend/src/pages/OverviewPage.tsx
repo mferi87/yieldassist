@@ -222,6 +222,7 @@ export default function OverviewPage() {
                             backgroundSize: `${cellSize * 2}px ${cellSize * 2}px, ${cellSize * 2}px ${cellSize * 2}px, ${cellSize}px ${cellSize}px, ${cellSize}px ${cellSize}px`,
                             backgroundColor: '#fafafa',
                             borderRadius: '8px',
+                            border: '1px solid #9ca3af',
                         }}
                         onDragOver={(e) => {
                             if (isEditMode) {
