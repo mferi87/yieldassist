@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useGardenStore, type Bed } from '../store/gardenStore'
 import { useCropStore, type Crop, type CropPlacement } from '../store/cropStore'
@@ -45,6 +45,7 @@ function getCropEmoji(cropName: string): string {
 export default function BedsPage() {
     const { t } = useTranslation()
     const { gardenId } = useParams()
+    const [searchParams] = useSearchParams()
     const { currentGarden, beds, fetchGarden, fetchBeds, isLoading } = useGardenStore()
     const { crops, placements, fetchCrops, fetchPlacements, createPlacement, deletePlacement } = useCropStore()
     const [selectedBed, setSelectedBed] = useState<Bed | null>(null)
@@ -68,11 +69,31 @@ export default function BedsPage() {
         }
     }, [gardenId, fetchGarden, fetchBeds, fetchCrops])
 
+    // Track if we've already applied the initial URL selection
+    const hasAppliedUrlParam = useRef(false)
+
+    // Select bed from URL parameter (only on initial load) or default to first bed
     useEffect(() => {
-        if (beds.length > 0 && !selectedBed) {
-            setSelectedBed(beds[0])
+        if (beds.length > 0) {
+            // Only check URL param on first load
+            if (!hasAppliedUrlParam.current) {
+                const bedId = searchParams.get('bed')
+                if (bedId) {
+                    const targetBed = beds.find(b => b.id === bedId)
+                    if (targetBed) {
+                        setSelectedBed(targetBed)
+                        hasAppliedUrlParam.current = true
+                        return
+                    }
+                }
+                hasAppliedUrlParam.current = true
+            }
+            // Fall back to first bed if no bed is selected
+            if (!selectedBed) {
+                setSelectedBed(beds[0])
+            }
         }
-    }, [beds, selectedBed])
+    }, [beds, searchParams, selectedBed])
 
     useEffect(() => {
         if (selectedBed) {

@@ -173,8 +173,11 @@ export default function OverviewPage() {
                                         >
                                             <GripVertical className="w-4 h-4 text-gray-400" />
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-medium text-gray-900 text-sm truncate">{bed.name}</p>
+                                        <div
+                                            className="flex-1 min-w-0 cursor-pointer hover:text-primary-600"
+                                            onClick={() => navigate(`/garden/${gardenId}/beds?bed=${bed.id}`)}
+                                        >
+                                            <p className="font-medium text-gray-900 text-sm truncate hover:text-primary-600">{bed.name}</p>
                                             <p className="text-xs text-gray-500">
                                                 {(bed.width_cells * 25) / 100}m × {(bed.height_cells * 25) / 100}m
                                             </p>
@@ -246,6 +249,7 @@ export default function OverviewPage() {
                                 bed={bed}
                                 cellSize={cellSize}
                                 isEditMode={isEditMode}
+                                onBedClick={(bedId) => navigate(`/garden/${gardenId}/beds?bed=${bedId}`)}
                             />
                         ))}
                     </div>
@@ -471,10 +475,12 @@ function BedComponent({
     bed,
     cellSize,
     isEditMode,
+    onBedClick,
 }: {
     bed: Bed
     cellSize: number
     isEditMode: boolean
+    onBedClick?: (bedId: string) => void
 }) {
     // Convert cells to meters (25cm per cell = 0.25m)
     const widthM = (bed.width_cells * 25) / 100
@@ -501,7 +507,15 @@ function BedComponent({
             }}
         >
             <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-sm font-medium text-earth-700 bg-white/80 px-2 py-1 rounded">
+                <span
+                    className={`text-sm font-medium text-earth-700 bg-white/80 px-2 py-1 rounded ${!isEditMode ? 'cursor-pointer hover:bg-white hover:text-primary-600' : ''}`}
+                    onClick={(e) => {
+                        if (!isEditMode && onBedClick) {
+                            e.stopPropagation()
+                            onBedClick(bed.id)
+                        }
+                    }}
+                >
                     {bed.name}
                 </span>
             </div>
