@@ -306,15 +306,25 @@ export default function BedsPage() {
                                         const isDrawSelection = isInDrawArea(x, y) && isDrawing
                                         const isPlacementOrigin = placement && placement.position_x === x && placement.position_y === y
 
+                                        // Determine if this cell is on a 1-meter boundary (every 4 cells = 100cm)
+                                        const isRightMeterLine = (x + 1) % 4 === 0
+                                        const isBottomMeterLine = (y + 1) % 4 === 0
+                                        const isLeftMeterLine = x % 4 === 0
+                                        const isTopMeterLine = y % 4 === 0
+
                                         return (
                                             <div
                                                 key={`${x}-${y}-${placement?.id ?? 'empty'}`}
-                                                className={`border border-gray-100 flex items-center justify-center text-lg transition-colors relative group ${editMode === 'crops' && selectedCrop && !placement
+                                                className={`flex items-center justify-center text-lg transition-colors relative group ${editMode === 'crops' && selectedCrop && !placement
                                                     ? 'cursor-crosshair hover:bg-primary-50'
                                                     : placement && editMode === 'crops' ? 'cursor-pointer' : ''
                                                     } ${isDrawSelection && selectedCrop ? 'ring-2 ring-primary-400 ring-inset' : ''}`}
                                                 style={{
                                                     backgroundColor: placement ? `${getCropColor(placement.crop_id)}30` : undefined,
+                                                    borderTop: isTopMeterLine ? '1px solid #9ca3af' : '1px solid #e5e7eb',
+                                                    borderLeft: isLeftMeterLine ? '1px solid #9ca3af' : '1px solid #e5e7eb',
+                                                    borderRight: isRightMeterLine ? '1px solid #9ca3af' : '1px solid #e5e7eb',
+                                                    borderBottom: isBottomMeterLine ? '1px solid #9ca3af' : '1px solid #e5e7eb',
                                                 }}
                                                 onMouseDown={(e) => {
                                                     if (placement && editMode === 'crops') {

@@ -214,10 +214,12 @@ export default function OverviewPage() {
                             width: gridCols * cellSize,
                             height: gridRows * cellSize,
                             backgroundImage: `
-                linear-gradient(to right, #e5e7eb 1px, transparent 1px),
-                linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)
-              `,
-                            backgroundSize: `${cellSize}px ${cellSize}px`,
+                                linear-gradient(to right, #9ca3af 1px, transparent 1px),
+                                linear-gradient(to bottom, #9ca3af 1px, transparent 1px),
+                                linear-gradient(to right, #e5e7eb 1px, transparent 1px),
+                                linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)
+                            `,
+                            backgroundSize: `${cellSize * 2}px ${cellSize * 2}px, ${cellSize * 2}px ${cellSize * 2}px, ${cellSize}px ${cellSize}px, ${cellSize}px ${cellSize}px`,
                             backgroundColor: '#fafafa',
                             borderRadius: '8px',
                         }}
