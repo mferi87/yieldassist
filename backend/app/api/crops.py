@@ -107,7 +107,23 @@ async def update_crop(
     
     return crop
 
-
+@router.delete("/{crop_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_crop(
+    crop_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a crop. Only owner or global admin can delete."""
+    crop = db.query(Crop).filter(Crop.id == crop_id).first()
+    if not crop:
+        raise HTTPException(status_code=404, detail="Crop not found")
+    
+    # Only owner or global admin can delete
+    if crop.created_by != current_user.id and not current_user.is_global_admin:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this crop")
+    
+    db.delete(crop)
+    db.commit()
 # Crop Placement endpoints
 @router.get("/placements/bed/{bed_id}", response_model=List[CropPlacementResponse])
 async def list_crop_placements(

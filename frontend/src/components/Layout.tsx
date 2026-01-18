@@ -86,6 +86,22 @@ export default function Layout() {
                                             <LogOut className="w-4 h-4" />
                                             {t('auth.logout')}
                                         </button>
+
+                                        {/* Divider */}
+                                        <div className="h-px bg-gray-100 my-1"></div>
+
+                                        {user?.is_global_admin && (
+                                            <NavLink
+                                                to="/admin"
+                                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 mb-1"
+                                                onClick={() => setShowUserMenu(false)}
+                                            >
+                                                <div className="w-4 h-4 flex items-center justify-center">
+                                                    <span className="text-xs font-bold">A</span>
+                                                </div>
+                                                Admin Dashboard
+                                            </NavLink>
+                                        )}
                                     </div>
                                 </>
                             )}

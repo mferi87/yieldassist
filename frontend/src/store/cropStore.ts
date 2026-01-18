@@ -50,6 +50,9 @@ interface CropState {
     }) => Promise<CropPlacement>
     updatePlacement: (id: string, data: Partial<CropPlacement>) => Promise<void>
     deletePlacement: (id: string) => Promise<void>
+    createCrop: (data: Omit<Crop, 'id' | 'is_public' | 'is_approved' | 'care_schedule'> & { care_schedule?: Record<string, any> }) => Promise<void>
+    updateCrop: (id: string, data: Partial<Crop>) => Promise<void>
+    deleteCrop: (id: string) => Promise<void>
 }
 
 export const useCropStore = create<CropState>((set, get) => ({
@@ -141,6 +144,48 @@ export const useCropStore = create<CropState>((set, get) => ({
             }
         } catch (error: any) {
             set({ error: error.message, isLoading: false })
+        }
+    },
+
+    createCrop: async (data: Omit<Crop, 'id' | 'is_public' | 'is_approved' | 'care_schedule'> & { care_schedule?: Record<string, any> }) => {
+        set({ isLoading: true, error: null })
+        try {
+            const response = await api.post('/api/crops/', data)
+            set((state) => ({
+                crops: [...state.crops, response.data],
+                isLoading: false,
+            }))
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false })
+            throw error
+        }
+    },
+
+    updateCrop: async (id: string, data: Partial<Crop>) => {
+        set({ isLoading: true, error: null })
+        try {
+            const response = await api.patch(`/api/crops/${id}`, data)
+            set((state) => ({
+                crops: state.crops.map((c) => (c.id === id ? response.data : c)),
+                isLoading: false,
+            }))
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false })
+            throw error
+        }
+    },
+
+    deleteCrop: async (id: string) => {
+        set({ isLoading: true, error: null })
+        try {
+            await api.delete(`/api/crops/${id}`)
+            set((state) => ({
+                crops: state.crops.filter((c) => c.id !== id),
+                isLoading: false,
+            }))
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false })
+            throw error
         }
     },
 }))

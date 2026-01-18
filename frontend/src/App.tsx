@@ -7,6 +7,7 @@ import GardensPage from './pages/GardensPage'
 import OverviewPage from './pages/OverviewPage'
 import BedsPage from './pages/BedsPage'
 import CropsPage from './pages/CropsPage'
+import AdminPage from './pages/AdminPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated } = useAuthStore()
@@ -27,6 +28,7 @@ function App() {
                 }
             >
                 <Route index element={<GardensPage />} />
+                <Route path="admin" element={<AdminPage />} />
                 <Route path="garden/:gardenId" element={<OverviewPage />} />
                 <Route path="garden/:gardenId/beds" element={<BedsPage />} />
                 <Route path="garden/:gardenId/crops" element={<CropsPage />} />
