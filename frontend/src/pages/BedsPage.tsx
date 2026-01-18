@@ -69,31 +69,25 @@ export default function BedsPage() {
         }
     }, [gardenId, fetchGarden, fetchBeds, fetchCrops])
 
-    // Track if we've already applied the initial URL selection
-    const hasAppliedUrlParam = useRef(false)
+    // Get bed ID from URL
+    const urlBedId = searchParams.get('bed')
 
-    // Select bed from URL parameter (only on initial load) or default to first bed
+    // Apply URL parameter when it changes (navigate to specific bed)
     useEffect(() => {
-        if (beds.length > 0) {
-            // Only check URL param on first load
-            if (!hasAppliedUrlParam.current) {
-                const bedId = searchParams.get('bed')
-                if (bedId) {
-                    const targetBed = beds.find(b => b.id === bedId)
-                    if (targetBed) {
-                        setSelectedBed(targetBed)
-                        hasAppliedUrlParam.current = true
-                        return
-                    }
-                }
-                hasAppliedUrlParam.current = true
-            }
-            // Fall back to first bed if no bed is selected
-            if (!selectedBed) {
-                setSelectedBed(beds[0])
+        if (urlBedId && beds.length > 0) {
+            const targetBed = beds.find(b => b.id === urlBedId)
+            if (targetBed && (!selectedBed || selectedBed.id !== urlBedId)) {
+                setSelectedBed(targetBed)
             }
         }
-    }, [beds, searchParams, selectedBed])
+    }, [urlBedId, beds]) // Only depends on URL and beds loading
+
+    // Default to first bed if none selected
+    useEffect(() => {
+        if (beds.length > 0 && !selectedBed && !urlBedId) {
+            setSelectedBed(beds[0])
+        }
+    }, [beds, selectedBed, urlBedId])
 
     useEffect(() => {
         if (selectedBed) {
