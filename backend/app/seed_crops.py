@@ -5,12 +5,15 @@ Run with: python -m app.seed_crops
 from app.core.database import SessionLocal
 from app.models.crop import Crop
 
+# Spacing values: spacing_cm = in-row (between plants), row_spacing_cm = between rows
 SEED_CROPS = [
     {
         "name": "Tomato",
         "cells_width": 1,
         "cells_height": 1,
         "per_cell": 1,
+        "spacing_cm": 50,
+        "row_spacing_cm": 80,
         "care_schedule": {
             "plant_month": 3,
             "harvest_months": [7, 8, 9],
@@ -26,6 +29,8 @@ SEED_CROPS = [
         "cells_width": 1,
         "cells_height": 1,
         "per_cell": 4,
+        "spacing_cm": 20,
+        "row_spacing_cm": 30,
         "care_schedule": {
             "plant_month": 3,
             "harvest_months": [5, 6],
@@ -41,6 +46,8 @@ SEED_CROPS = [
         "cells_width": 1,
         "cells_height": 1,
         "per_cell": 16,
+        "spacing_cm": 5,
+        "row_spacing_cm": 20,
         "care_schedule": {
             "plant_month": 4,
             "harvest_months": [7, 8],
@@ -56,6 +63,8 @@ SEED_CROPS = [
         "cells_width": 1,
         "cells_height": 1,
         "per_cell": 1,
+        "spacing_cm": 45,
+        "row_spacing_cm": 60,
         "care_schedule": {
             "plant_month": 4,
             "harvest_months": [7, 8, 9],
@@ -71,6 +80,8 @@ SEED_CROPS = [
         "cells_width": 2,
         "cells_height": 1,
         "per_cell": 1,
+        "spacing_cm": 40,
+        "row_spacing_cm": 100,
         "care_schedule": {
             "plant_month": 5,
             "harvest_months": [7, 8],
@@ -86,6 +97,8 @@ SEED_CROPS = [
         "cells_width": 2,
         "cells_height": 2,
         "per_cell": 1,
+        "spacing_cm": 60,
+        "row_spacing_cm": 100,
         "care_schedule": {
             "plant_month": 5,
             "harvest_months": [7, 8, 9],
@@ -101,6 +114,8 @@ SEED_CROPS = [
         "cells_width": 3,
         "cells_height": 1,
         "per_cell": 1,
+        "spacing_cm": 100,
+        "row_spacing_cm": 200,
         "care_schedule": {
             "plant_month": 5,
             "harvest_months": [9, 10],
@@ -116,6 +131,8 @@ SEED_CROPS = [
         "cells_width": 1,
         "cells_height": 1,
         "per_cell": 16,
+        "spacing_cm": 5,
+        "row_spacing_cm": 15,
         "care_schedule": {
             "plant_month": 3,
             "harvest_months": [4, 5],
@@ -131,6 +148,8 @@ SEED_CROPS = [
         "cells_width": 1,
         "cells_height": 1,
         "per_cell": 9,
+        "spacing_cm": 10,
+        "row_spacing_cm": 30,
         "care_schedule": {
             "plant_month": 3,
             "harvest_months": [5, 6],
@@ -146,6 +165,8 @@ SEED_CROPS = [
         "cells_width": 1,
         "cells_height": 1,
         "per_cell": 4,
+        "spacing_cm": 10,
+        "row_spacing_cm": 45,
         "care_schedule": {
             "plant_month": 5,
             "harvest_months": [7, 8],
@@ -161,6 +182,8 @@ SEED_CROPS = [
         "cells_width": 1,
         "cells_height": 1,
         "per_cell": 9,
+        "spacing_cm": 10,
+        "row_spacing_cm": 25,
         "care_schedule": {
             "plant_month": 3,
             "harvest_months": [7, 8],
@@ -176,6 +199,8 @@ SEED_CROPS = [
         "cells_width": 1,
         "cells_height": 1,
         "per_cell": 9,
+        "spacing_cm": 10,
+        "row_spacing_cm": 25,
         "care_schedule": {
             "plant_month": 10,
             "harvest_months": [6, 7],
@@ -191,6 +216,8 @@ SEED_CROPS = [
         "cells_width": 2,
         "cells_height": 2,
         "per_cell": 1,
+        "spacing_cm": 45,
+        "row_spacing_cm": 60,
         "care_schedule": {
             "plant_month": 4,
             "harvest_months": [6, 7],
@@ -206,27 +233,31 @@ SEED_CROPS = [
         "cells_width": 2,
         "cells_height": 2,
         "per_cell": 1,
+        "spacing_cm": 45,
+        "row_spacing_cm": 60,
         "care_schedule": {
             "plant_month": 4,
             "harvest_months": [7, 8],
             "days_to_harvest": 90,
             "watering": "regular",
-            "sun": "full"
+            "sun": "partial"
         },
         "is_public": True,
         "is_approved": True
     },
     {
-        "name": "Kale",
+        "name": "Eggplant",
         "cells_width": 1,
         "cells_height": 1,
         "per_cell": 1,
+        "spacing_cm": 50,
+        "row_spacing_cm": 75,
         "care_schedule": {
-            "plant_month": 3,
-            "harvest_months": [5, 6, 7, 8, 9, 10],
-            "days_to_harvest": 55,
+            "plant_month": 5,
+            "harvest_months": [8, 9],
+            "days_to_harvest": 85,
             "watering": "regular",
-            "sun": "partial"
+            "sun": "full"
         },
         "is_public": True,
         "is_approved": True
@@ -235,56 +266,49 @@ SEED_CROPS = [
 
 
 def seed_database():
-    """Initialize database with tables, admin user, and seed crops."""
-    # Import all models and create tables first
-    from app.core.database import engine, Base
+    """Seed the database with default admin user and initial crops."""
     from app.core.config import get_settings
+    from app.models.user import User
     from app.core.security import get_password_hash
-    from app.models import User, Garden, GardenMember, Bed, Zone, Crop, CropPlacement, Sensor, Valve
     
     settings = get_settings()
     
-    print("Creating database tables...")
-    Base.metadata.create_all(bind=engine)
-    print("Tables created successfully!")
-    
     db = SessionLocal()
     try:
-        # Create admin user if doesn't exist
-        admin = db.query(User).filter(User.email == settings.admin_email).first()
-        if not admin:
-            print(f"Creating admin user: {settings.admin_email}")
-            admin = User(
+        # Create admin user if not exists
+        existing_admin = db.query(User).filter(User.email == settings.admin_email).first()
+        if not existing_admin and settings.admin_email and settings.admin_password:
+            admin_user = User(
                 email=settings.admin_email,
-                name=settings.admin_name,
                 password_hash=get_password_hash(settings.admin_password),
+                name=settings.admin_name or "Admin",
                 is_global_admin=True
             )
-            db.add(admin)
+            db.add(admin_user)
             db.commit()
-            print(f"Admin user created successfully!")
-            print(f"  Email: {settings.admin_email}")
-            print(f"  Password: {settings.admin_password}")
+            print(f"✅ Created admin user: {settings.admin_email}")
         else:
-            print(f"Admin user already exists: {settings.admin_email}")
+            print(f"ℹ️  Admin user already exists or not configured: {settings.admin_email}")
         
-        # Check if crops already exist
-        existing = db.query(Crop).filter(Crop.is_public == True).count()
-        if existing > 0:
-            print(f"Crops already seeded ({existing} public crops exist)")
-            return
-
+        # Seed crops
         for crop_data in SEED_CROPS:
-            crop = Crop(**crop_data)
-            db.add(crop)
-
+            existing = db.query(Crop).filter(Crop.name == crop_data["name"]).first()
+            if not existing:
+                crop = Crop(**crop_data)
+                db.add(crop)
+                print(f"✅ Added crop: {crop_data['name']}")
+            else:
+                # Update existing crop with new fields
+                for key, value in crop_data.items():
+                    setattr(existing, key, value)
+                print(f"↻  Updated crop: {crop_data['name']}")
+        
         db.commit()
-        print(f"Successfully seeded {len(SEED_CROPS)} crops")
-
+        print("✅ Database seeding complete!")
+        
     finally:
         db.close()
 
 
 if __name__ == "__main__":
     seed_database()
-

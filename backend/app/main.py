@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.core.database import engine, Base
 from app.api import auth_router, gardens_router, beds_router, crops_router
+from app.seed_crops import seed_database
 
 # Import all models to ensure they're registered with Base before create_all
 from app.models import User, Garden, GardenMember, Bed, Zone, Crop, CropPlacement, Sensor, Valve
@@ -11,6 +12,9 @@ settings = get_settings()
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
+
+# Seed database with admin user and default crops
+seed_database()
 
 app = FastAPI(
     title="YieldAssist API",

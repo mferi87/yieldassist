@@ -1,28 +1,166 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useGardenStore, type Bed } from '../store/gardenStore'
-import { Loader2, Plus, Edit, Eye } from 'lucide-react'
+import { useCropStore, type Crop, type CropPlacement } from '../store/cropStore'
+import { Loader2, Plus, Edit, Eye, Trash2, X, Settings } from 'lucide-react'
+
+// Color palette for crops
+const CROP_COLORS = [
+    '#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6',
+    '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16'
+]
+
+function getCropColor(cropId: string): string {
+    let hash = 0
+    for (let i = 0; i < cropId.length; i++) {
+        hash = cropId.charCodeAt(i) + ((hash << 5) - hash)
+    }
+    return CROP_COLORS[Math.abs(hash) % CROP_COLORS.length]
+}
 
 export default function BedsPage() {
     const { t } = useTranslation()
     const { gardenId } = useParams()
     const { currentGarden, beds, fetchGarden, fetchBeds, isLoading } = useGardenStore()
+    const { crops, placements, fetchCrops, fetchPlacements, createPlacement, deletePlacement } = useCropStore()
     const [selectedBed, setSelectedBed] = useState<Bed | null>(null)
     const [editMode, setEditMode] = useState<'view' | 'crops' | 'zones'>('view')
+    const [selectedCrop, setSelectedCrop] = useState<Crop | null>(null)
+    const [customSpacing, setCustomSpacing] = useState<number | null>(null)
+    const [customRowSpacing, setCustomRowSpacing] = useState<number | null>(null)
+    const [isDrawing, setIsDrawing] = useState(false)
+    const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null)
+    const [drawEnd, setDrawEnd] = useState<{ x: number; y: number } | null>(null)
+    const gridRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         if (gardenId) {
             fetchGarden(gardenId)
             fetchBeds(gardenId)
+            fetchCrops()
         }
-    }, [gardenId, fetchGarden, fetchBeds])
+    }, [gardenId, fetchGarden, fetchBeds, fetchCrops])
 
     useEffect(() => {
         if (beds.length > 0 && !selectedBed) {
             setSelectedBed(beds[0])
         }
     }, [beds, selectedBed])
+
+    useEffect(() => {
+        if (selectedBed) {
+            fetchPlacements(selectedBed.id)
+        }
+    }, [selectedBed, fetchPlacements])
+
+    useEffect(() => {
+        if (selectedCrop) {
+            setCustomSpacing(null)
+            setCustomRowSpacing(null)
+        }
+    }, [selectedCrop])
+
+    const cellSize = 40 // 25cm per cell, 40px for visibility
+    const gridWidth = selectedBed?.width_cells || 4
+    const gridHeight = selectedBed?.height_cells || 8
+
+    const getEffectiveSpacing = () => {
+        if (customSpacing !== null) return customSpacing
+        if (selectedCrop) return selectedCrop.spacing_cm
+        return 25
+    }
+
+    const handleMouseDown = (e: React.MouseEvent, x: number, y: number) => {
+        if (editMode !== 'crops' || !selectedCrop) return
+        setIsDrawing(true)
+        setDrawStart({ x, y })
+        setDrawEnd({ x, y })
+    }
+
+    const handleMouseEnter = (x: number, y: number) => {
+        if (!isDrawing) return
+        setDrawEnd({ x, y })
+    }
+
+    const handleMouseUp = async () => {
+        if (!isDrawing || !drawStart || !drawEnd || !selectedBed || !selectedCrop) {
+            setIsDrawing(false)
+            setDrawStart(null)
+            setDrawEnd(null)
+            return
+        }
+
+        const minX = Math.min(drawStart.x, drawEnd.x)
+        const maxX = Math.max(drawStart.x, drawEnd.x)
+        const minY = Math.min(drawStart.y, drawEnd.y)
+        const maxY = Math.max(drawStart.y, drawEnd.y)
+        const width = maxX - minX + 1
+        const height = maxY - minY + 1
+
+        try {
+            await createPlacement({
+                bed_id: selectedBed.id,
+                crop_id: selectedCrop.id,
+                position_x: minX,
+                position_y: minY,
+                width_cells: width,
+                height_cells: height,
+                custom_spacing_cm: customSpacing ?? undefined,
+                custom_row_spacing_cm: customRowSpacing ?? undefined,
+            })
+        } catch (error) {
+            console.error('Failed to create placement:', error)
+        }
+
+        setIsDrawing(false)
+        setDrawStart(null)
+        setDrawEnd(null)
+    }
+
+    const handleDeletePlacement = async (placementId: string) => {
+        try {
+            await deletePlacement(placementId)
+        } catch (error) {
+            console.error('Failed to delete placement:', error)
+        }
+    }
+
+    const isInDrawArea = (x: number, y: number) => {
+        if (!drawStart || !drawEnd) return false
+        const minX = Math.min(drawStart.x, drawEnd.x)
+        const maxX = Math.max(drawStart.x, drawEnd.x)
+        const minY = Math.min(drawStart.y, drawEnd.y)
+        const maxY = Math.max(drawStart.y, drawEnd.y)
+        return x >= minX && x <= maxX && y >= minY && y <= maxY
+    }
+
+    // Memoize placement lookup - rebuilds whenever placements array changes
+    const placementMap = useMemo(() => {
+        const map = new Map<string, CropPlacement>()
+        for (const p of placements) {
+            for (let px = p.position_x; px < p.position_x + p.width_cells; px++) {
+                for (let py = p.position_y; py < p.position_y + p.height_cells; py++) {
+                    map.set(`${px},${py}`, p)
+                }
+            }
+        }
+        return map
+    }, [placements])
+
+    const getPlacementAt = (x: number, y: number): CropPlacement | null => {
+        return placementMap.get(`${x},${y}`) || null
+    }
+
+    const calculatePlantCount = (placement: CropPlacement): number => {
+        const spacingCm = placement.custom_spacing_cm ?? placement.crop.spacing_cm
+        const rowSpacingCm = placement.custom_row_spacing_cm ?? placement.crop.row_spacing_cm
+        const widthCm = placement.width_cells * 25
+        const heightCm = placement.height_cells * 25
+        const plantsInRow = Math.max(1, Math.floor(widthCm / spacingCm) + 1)
+        const rows = Math.max(1, Math.floor(heightCm / rowSpacingCm) + 1)
+        return plantsInRow * rows
+    }
 
     if (isLoading && !currentGarden) {
         return (
@@ -31,10 +169,6 @@ export default function BedsPage() {
             </div>
         )
     }
-
-    const cellSize = 50 // 25cm per cell
-    const gridWidth = selectedBed?.width_cells || 4
-    const gridHeight = selectedBed?.height_cells || 8
 
     return (
         <div>
@@ -49,8 +183,8 @@ export default function BedsPage() {
                     <button
                         onClick={() => setEditMode('view')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${editMode === 'view'
-                                ? 'bg-primary-100 text-primary-700'
-                                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                            ? 'bg-primary-100 text-primary-700'
+                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                             }`}
                     >
                         <Eye className="w-4 h-4" />
@@ -59,18 +193,18 @@ export default function BedsPage() {
                     <button
                         onClick={() => setEditMode('crops')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${editMode === 'crops'
-                                ? 'bg-primary-100 text-primary-700'
-                                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                            ? 'bg-primary-100 text-primary-700'
+                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                             }`}
                     >
                         <Edit className="w-4 h-4" />
-                        Crop Placement
+                        Plant Crops
                     </button>
                     <button
                         onClick={() => setEditMode('zones')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${editMode === 'zones'
-                                ? 'bg-primary-100 text-primary-700'
-                                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                            ? 'bg-primary-100 text-primary-700'
+                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                             }`}
                     >
                         <Edit className="w-4 h-4" />
@@ -95,8 +229,8 @@ export default function BedsPage() {
                                     key={bed.id}
                                     onClick={() => setSelectedBed(bed)}
                                     className={`w-full text-left p-3 rounded-xl transition-colors ${selectedBed?.id === bed.id
-                                            ? 'bg-primary-100 border-2 border-primary-300'
-                                            : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
+                                        ? 'bg-primary-100 border-2 border-primary-300'
+                                        : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
                                         }`}
                                 >
                                     <p className="font-medium text-gray-900">{bed.name}</p>
@@ -121,29 +255,89 @@ export default function BedsPage() {
                             </div>
 
                             <div
-                                className="mx-auto border border-gray-200 rounded-lg overflow-hidden"
+                                ref={gridRef}
+                                className="mx-auto border border-gray-200 rounded-lg overflow-hidden select-none"
                                 style={{
                                     width: gridWidth * cellSize,
                                     height: gridHeight * cellSize,
                                     display: 'grid',
                                     gridTemplateColumns: `repeat(${gridWidth}, ${cellSize}px)`,
                                     gridTemplateRows: `repeat(${gridHeight}, ${cellSize}px)`,
+                                    position: 'relative',
+                                }}
+                                onMouseLeave={() => {
+                                    if (isDrawing) {
+                                        handleMouseUp()
+                                    }
                                 }}
                             >
-                                {Array.from({ length: gridWidth * gridHeight }).map((_, i) => (
-                                    <div
-                                        key={i}
-                                        className={`border border-gray-100 flex items-center justify-center text-xs text-gray-300 transition-colors ${editMode !== 'view' ? 'hover:bg-primary-50 cursor-pointer' : ''
-                                            }`}
-                                    >
-                                        {/* Placeholder for crops/zones */}
-                                    </div>
-                                ))}
+                                {Array.from({ length: gridWidth * gridHeight }).map((_, i) => {
+                                    const x = i % gridWidth
+                                    const y = Math.floor(i / gridWidth)
+                                    const placement = getPlacementAt(x, y)
+                                    const isDrawSelection = isInDrawArea(x, y) && isDrawing
+                                    const isPlacementOrigin = placement && placement.position_x === x && placement.position_y === y
+
+                                    return (
+                                        <div
+                                            key={`${x}-${y}-${placement?.id ?? 'empty'}`}
+                                            className={`border border-gray-100 flex items-center justify-center text-xs transition-colors relative ${editMode === 'crops' && selectedCrop && !placement
+                                                ? 'cursor-crosshair hover:bg-primary-50'
+                                                : ''
+                                                } ${isDrawSelection && selectedCrop ? 'ring-2 ring-primary-400 ring-inset' : ''}`}
+                                            style={{
+                                                backgroundColor: placement ? `${getCropColor(placement.crop_id)}20` : undefined,
+                                            }}
+                                            onMouseDown={(e) => handleMouseDown(e, x, y)}
+                                            onMouseEnter={() => handleMouseEnter(x, y)}
+                                            onMouseUp={handleMouseUp}
+                                        >
+                                            {isPlacementOrigin && (
+                                                <div
+                                                    className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                                                    style={{
+                                                        width: placement.width_cells * cellSize,
+                                                        height: placement.height_cells * cellSize,
+                                                        backgroundColor: `${getCropColor(placement.crop_id)}40`,
+                                                        border: `2px solid ${getCropColor(placement.crop_id)}`,
+                                                        borderRadius: '4px',
+                                                        zIndex: 10,
+                                                    }}
+                                                >
+                                                    <div className="bg-white/90 px-2 py-1 rounded text-xs font-medium text-gray-700 shadow-sm pointer-events-auto">
+                                                        {placement.crop.name}
+                                                        <span className="text-gray-500 ml-1">
+                                                            ({calculatePlantCount(placement)})
+                                                        </span>
+                                                        {editMode === 'crops' && (
+                                                            <button
+                                                                onMouseDown={(e) => {
+                                                                    e.stopPropagation()
+                                                                    e.preventDefault()
+                                                                }}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    e.preventDefault()
+                                                                    handleDeletePlacement(placement.id)
+                                                                }}
+                                                                className="ml-2 text-red-500 hover:text-red-700"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
                             </div>
 
                             {editMode === 'crops' && (
                                 <p className="text-center text-sm text-gray-500 mt-4">
-                                    Click on cells to place crops (coming soon)
+                                    {selectedCrop
+                                        ? `Click and drag to plant ${selectedCrop.name}`
+                                        : 'Select a crop from the library to start planting'}
                                 </p>
                             )}
 
@@ -161,37 +355,132 @@ export default function BedsPage() {
                 </div>
 
                 {/* Right Panel (Edit Mode) */}
-                {editMode !== 'view' && (
+                {editMode === 'crops' && (
                     <div className="w-72 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 shrink-0">
-                        {editMode === 'crops' && (
-                            <>
-                                <h3 className="font-semibold text-gray-900 mb-4">Crop Library</h3>
-                                <div className="space-y-2">
-                                    {['Tomato', 'Lettuce', 'Carrot', 'Pepper', 'Cucumber'].map((crop) => (
+                        <h3 className="font-semibold text-gray-900 mb-4">Crop Library</h3>
+
+                        {/* Spacing Settings */}
+                        {selectedCrop && (
+                            <div className="mb-4 p-3 rounded-xl bg-gray-50">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Settings className="w-4 h-4 text-gray-500" />
+                                    <span className="text-sm font-medium text-gray-700">Plant Spacing</span>
+                                </div>
+
+                                {/* In-row spacing */}
+                                <div className="mb-2">
+                                    <label className="text-xs text-gray-500 block mb-1">In-row (between plants)</label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            value={customSpacing ?? selectedCrop.spacing_cm}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value)
+                                                setCustomSpacing(val > 0 ? val : null)
+                                            }}
+                                            className="w-20 px-2 py-1 rounded border border-gray-200 text-sm"
+                                            min={5}
+                                            max={200}
+                                        />
+                                        <span className="text-sm text-gray-500">cm</span>
+                                    </div>
+                                </div>
+
+                                {/* Row spacing */}
+                                <div className="mb-2">
+                                    <label className="text-xs text-gray-500 block mb-1">Between rows</label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            value={customRowSpacing ?? selectedCrop.row_spacing_cm}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value)
+                                                setCustomRowSpacing(val > 0 ? val : null)
+                                            }}
+                                            className="w-20 px-2 py-1 rounded border border-gray-200 text-sm"
+                                            min={5}
+                                            max={200}
+                                        />
+                                        <span className="text-sm text-gray-500">cm</span>
+                                    </div>
+                                </div>
+
+                                {(customSpacing !== null || customRowSpacing !== null) && (
+                                    <button
+                                        onClick={() => {
+                                            setCustomSpacing(null)
+                                            setCustomRowSpacing(null)
+                                        }}
+                                        className="text-xs text-primary-600 hover:underline mt-1"
+                                    >
+                                        Reset to defaults
+                                    </button>
+                                )}
+                                <p className="text-xs text-gray-400 mt-2">
+                                    Default: {selectedCrop.spacing_cm}cm × {selectedCrop.row_spacing_cm}cm
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                            {crops.map((crop) => (
+                                <div
+                                    key={crop.id}
+                                    onClick={() => setSelectedCrop(crop)}
+                                    className={`p-3 rounded-xl cursor-pointer transition-colors ${selectedCrop?.id === crop.id
+                                        ? 'bg-primary-100 border-2 border-primary-300'
+                                        : 'bg-gray-50 hover:bg-primary-50 border-2 border-transparent'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-2">
                                         <div
-                                            key={crop}
-                                            className="p-3 rounded-xl bg-gray-50 hover:bg-primary-50 cursor-pointer transition-colors"
-                                        >
-                                            <p className="font-medium text-gray-900">{crop}</p>
-                                            <p className="text-xs text-gray-500">1×1 cell</p>
+                                            className="w-3 h-3 rounded-full"
+                                            style={{ backgroundColor: getCropColor(crop.id) }}
+                                        />
+                                        <p className="font-medium text-gray-900">{crop.name}</p>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        {crop.spacing_cm}×{crop.row_spacing_cm}cm grid
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Placed Crops Summary */}
+                        {placements.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                                <h4 className="text-sm font-medium text-gray-700 mb-2">Planted Crops</h4>
+                                <div className="space-y-1">
+                                    {placements.map((p) => (
+                                        <div key={p.id} className="flex items-center justify-between text-sm">
+                                            <span className="text-gray-600">{p.crop.name}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-gray-400">{calculatePlantCount(p)} plants</span>
+                                                <button
+                                                    onClick={() => handleDeletePlacement(p.id)}
+                                                    className="text-red-400 hover:text-red-600"
+                                                >
+                                                    <Trash2 className="w-3 h-3" />
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
-                            </>
+                            </div>
                         )}
+                    </div>
+                )}
 
-                        {editMode === 'zones' && (
-                            <>
-                                <h3 className="font-semibold text-gray-900 mb-4">Zone Editor</h3>
-                                <button className="w-full flex items-center gap-2 p-3 rounded-xl bg-primary-50 text-primary-700 hover:bg-primary-100 transition-colors">
-                                    <Plus className="w-4 h-4" />
-                                    New Zone
-                                </button>
-                                <p className="text-xs text-gray-500 mt-4">
-                                    Zones group cells for sensor and irrigation control.
-                                </p>
-                            </>
-                        )}
+                {editMode === 'zones' && (
+                    <div className="w-72 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 shrink-0">
+                        <h3 className="font-semibold text-gray-900 mb-4">Zone Editor</h3>
+                        <button className="w-full flex items-center gap-2 p-3 rounded-xl bg-primary-50 text-primary-700 hover:bg-primary-100 transition-colors">
+                            <Plus className="w-4 h-4" />
+                            New Zone
+                        </button>
+                        <p className="text-xs text-gray-500 mt-4">
+                            Zones group cells for sensor and irrigation control.
+                        </p>
                     </div>
                 )}
             </div>

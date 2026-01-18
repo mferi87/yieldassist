@@ -10,6 +10,8 @@ class CropBase(BaseModel):
     cells_width: int = 1
     cells_height: int = 1
     per_cell: int = 1
+    spacing_cm: int = 25  # In-row spacing (between plants)
+    row_spacing_cm: int = 25  # Between-row spacing
     care_schedule: Dict[str, Any] = {}
 
 
@@ -22,6 +24,8 @@ class CropUpdate(BaseModel):
     cells_width: Optional[int] = None
     cells_height: Optional[int] = None
     per_cell: Optional[int] = None
+    spacing_cm: Optional[int] = None
+    row_spacing_cm: Optional[int] = None
     care_schedule: Optional[Dict[str, Any]] = None
     is_public: Optional[bool] = None
     is_approved: Optional[bool] = None
@@ -40,6 +44,10 @@ class CropResponse(CropBase):
 class CropPlacementBase(BaseModel):
     position_x: int
     position_y: int
+    width_cells: int = 1
+    height_cells: int = 1
+    custom_spacing_cm: Optional[int] = None  # User override for in-row spacing
+    custom_row_spacing_cm: Optional[int] = None  # User override for row spacing
     planted_date: Optional[date] = None
     status: CropStatus = CropStatus.PLANNED
 
@@ -52,6 +60,10 @@ class CropPlacementCreate(CropPlacementBase):
 class CropPlacementUpdate(BaseModel):
     position_x: Optional[int] = None
     position_y: Optional[int] = None
+    width_cells: Optional[int] = None
+    height_cells: Optional[int] = None
+    custom_spacing_cm: Optional[int] = None
+    custom_row_spacing_cm: Optional[int] = None
     planted_date: Optional[date] = None
     status: Optional[CropStatus] = None
 

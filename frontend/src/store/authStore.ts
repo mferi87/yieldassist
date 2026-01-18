@@ -19,6 +19,8 @@ interface AuthState {
     register: (email: string, password: string, name: string) => Promise<void>
     logout: () => void
     clearError: () => void
+    _hasHydrated: boolean
+    setHasHydrated: (state: boolean) => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -29,6 +31,11 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             isLoading: false,
             error: null,
+            _hasHydrated: false,
+
+            setHasHydrated: (state: boolean) => {
+                set({ _hasHydrated: state })
+            },
 
             login: async (email: string, password: string) => {
                 set({ isLoading: true, error: null })
@@ -88,12 +95,19 @@ export const useAuthStore = create<AuthState>()(
         }),
         {
             name: 'auth-storage',
-            partialize: (state) => ({ token: state.token, user: state.user, isAuthenticated: state.isAuthenticated }),
-            onRehydrate: (state) => {
+            partialize: (state) => ({
+                token: state.token,
+                user: state.user,
+                isAuthenticated: state.isAuthenticated
+            }),
+            onRehydrateStorage: () => (state) => {
+                // This runs after state is rehydrated from localStorage
                 if (state?.token) {
                     api.defaults.headers.common['Authorization'] = `Bearer ${state.token}`
                 }
+                state?.setHasHydrated(true)
             },
         }
     )
 )
+

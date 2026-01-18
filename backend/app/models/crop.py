@@ -22,6 +22,8 @@ class Crop(Base):
     cells_width = Column(Integer, nullable=False, default=1)  # Grid cells needed
     cells_height = Column(Integer, nullable=False, default=1)  # Grid cells needed
     per_cell = Column(Integer, nullable=False, default=1)  # Plants per cell if 1x1
+    spacing_cm = Column(Integer, nullable=False, default=25)  # In-row spacing (between plants)
+    row_spacing_cm = Column(Integer, nullable=False, default=25)  # Between-row spacing
     care_schedule = Column(JSON, default=dict)  # Planting, care, harvest info
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     is_public = Column(Boolean, default=False)
@@ -38,8 +40,12 @@ class CropPlacement(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     bed_id = Column(UUID(as_uuid=True), ForeignKey("beds.id"), nullable=False)
     crop_id = Column(UUID(as_uuid=True), ForeignKey("crops.id"), nullable=False)
-    position_x = Column(Integer, nullable=False)
-    position_y = Column(Integer, nullable=False)
+    position_x = Column(Integer, nullable=False)  # Top-left cell X
+    position_y = Column(Integer, nullable=False)  # Top-left cell Y
+    width_cells = Column(Integer, nullable=False, default=1)  # Area width in cells
+    height_cells = Column(Integer, nullable=False, default=1)  # Area height in cells
+    custom_spacing_cm = Column(Integer, nullable=True)  # User override for in-row spacing
+    custom_row_spacing_cm = Column(Integer, nullable=True)  # User override for row spacing
     planted_date = Column(Date, nullable=True)
     status = Column(Enum(CropStatus), default=CropStatus.PLANNED)
     
