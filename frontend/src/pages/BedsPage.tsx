@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useGardenStore, type Bed } from '../store/gardenStore'
 import { useCropStore, type Crop, type CropPlacement } from '../store/cropStore'
-import { Loader2, Plus, Edit, Eye, Trash2, X, Settings } from 'lucide-react'
+import { Loader2, Plus, Edit, Eye, Trash2, Settings } from 'lucide-react'
 
 // Color palette for crops
 const CROP_COLORS = [
@@ -19,6 +19,29 @@ function getCropColor(cropId: string): string {
     return CROP_COLORS[Math.abs(hash) % CROP_COLORS.length]
 }
 
+// Crop emoji mapping
+const CROP_EMOJIS: Record<string, string> = {
+    'Tomato': '🍅',
+    'Lettuce': '🥬',
+    'Carrot': '🥕',
+    'Bell Pepper': '🫑',
+    'Cucumber': '🥒',
+    'Zucchini': '🥒',
+    'Green Bean': '🫛',
+    'Onion': '🧅',
+    'Garlic': '🧄',
+    'Potato': '🥔',
+    'Radish': '🌰',
+    'Spinach': '🥬',
+    'Broccoli': '🥦',
+    'Cabbage': '🥬',
+    'Pumpkin': '🎃',
+}
+
+function getCropEmoji(cropName: string): string {
+    return CROP_EMOJIS[cropName] || '🌱'
+}
+
 export default function BedsPage() {
     const { t } = useTranslation()
     const { gardenId } = useParams()
@@ -32,6 +55,9 @@ export default function BedsPage() {
     const [isDrawing, setIsDrawing] = useState(false)
     const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null)
     const [drawEnd, setDrawEnd] = useState<{ x: number; y: number } | null>(null)
+    const [selectedPlacement, setSelectedPlacement] = useState<CropPlacement | null>(null)
+    const [hoveredPlacement, setHoveredPlacement] = useState<CropPlacement | null>(null)
+    const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null)
     const gridRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -254,85 +280,103 @@ export default function BedsPage() {
                                 </span>
                             </div>
 
-                            <div
-                                ref={gridRef}
-                                className="mx-auto border border-gray-200 rounded-lg overflow-hidden select-none"
-                                style={{
-                                    width: gridWidth * cellSize,
-                                    height: gridHeight * cellSize,
-                                    display: 'grid',
-                                    gridTemplateColumns: `repeat(${gridWidth}, ${cellSize}px)`,
-                                    gridTemplateRows: `repeat(${gridHeight}, ${cellSize}px)`,
-                                    position: 'relative',
-                                }}
-                                onMouseLeave={() => {
-                                    if (isDrawing) {
-                                        handleMouseUp()
-                                    }
-                                }}
-                            >
-                                {Array.from({ length: gridWidth * gridHeight }).map((_, i) => {
-                                    const x = i % gridWidth
-                                    const y = Math.floor(i / gridWidth)
-                                    const placement = getPlacementAt(x, y)
-                                    const isDrawSelection = isInDrawArea(x, y) && isDrawing
-                                    const isPlacementOrigin = placement && placement.position_x === x && placement.position_y === y
+                            <div className="py-4 px-2">
+                                <div
+                                    ref={gridRef}
+                                    className="mx-auto border border-gray-200 rounded-lg select-none"
+                                    style={{
+                                        width: gridWidth * cellSize,
+                                        height: gridHeight * cellSize,
+                                        display: 'grid',
+                                        gridTemplateColumns: `repeat(${gridWidth}, ${cellSize}px)`,
+                                        gridTemplateRows: `repeat(${gridHeight}, ${cellSize}px)`,
+                                        position: 'relative',
+                                        overflow: 'visible',
+                                    }}
+                                    onMouseLeave={() => {
+                                        if (isDrawing) {
+                                            handleMouseUp()
+                                        }
+                                    }}
+                                >
+                                    {Array.from({ length: gridWidth * gridHeight }).map((_, i) => {
+                                        const x = i % gridWidth
+                                        const y = Math.floor(i / gridWidth)
+                                        const placement = getPlacementAt(x, y)
+                                        const isDrawSelection = isInDrawArea(x, y) && isDrawing
+                                        const isPlacementOrigin = placement && placement.position_x === x && placement.position_y === y
 
-                                    return (
-                                        <div
-                                            key={`${x}-${y}-${placement?.id ?? 'empty'}`}
-                                            className={`border border-gray-100 flex items-center justify-center text-xs transition-colors relative ${editMode === 'crops' && selectedCrop && !placement
-                                                ? 'cursor-crosshair hover:bg-primary-50'
-                                                : ''
-                                                } ${isDrawSelection && selectedCrop ? 'ring-2 ring-primary-400 ring-inset' : ''}`}
-                                            style={{
-                                                backgroundColor: placement ? `${getCropColor(placement.crop_id)}20` : undefined,
-                                            }}
-                                            onMouseDown={(e) => handleMouseDown(e, x, y)}
-                                            onMouseEnter={() => handleMouseEnter(x, y)}
-                                            onMouseUp={handleMouseUp}
-                                        >
-                                            {isPlacementOrigin && (
-                                                <div
-                                                    className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                                                    style={{
-                                                        width: placement.width_cells * cellSize,
-                                                        height: placement.height_cells * cellSize,
-                                                        backgroundColor: `${getCropColor(placement.crop_id)}40`,
-                                                        border: `2px solid ${getCropColor(placement.crop_id)}`,
-                                                        borderRadius: '4px',
-                                                        zIndex: 10,
-                                                    }}
-                                                >
-                                                    <div className="bg-white/90 px-2 py-1 rounded text-xs font-medium text-gray-700 shadow-sm pointer-events-auto">
-                                                        {placement.crop.name}
-                                                        <span className="text-gray-500 ml-1">
-                                                            ({calculatePlantCount(placement)})
-                                                        </span>
-                                                        {editMode === 'crops' && (
-                                                            <button
-                                                                onMouseDown={(e) => {
-                                                                    e.stopPropagation()
-                                                                    e.preventDefault()
-                                                                }}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    e.preventDefault()
-                                                                    handleDeletePlacement(placement.id)
-                                                                }}
-                                                                className="ml-2 text-red-500 hover:text-red-700"
-                                                            >
-                                                                <X className="w-3 h-3" />
-                                                            </button>
-                                                        )}
+                                        return (
+                                            <div
+                                                key={`${x}-${y}-${placement?.id ?? 'empty'}`}
+                                                className={`border border-gray-100 flex items-center justify-center text-lg transition-colors relative group ${editMode === 'crops' && selectedCrop && !placement
+                                                    ? 'cursor-crosshair hover:bg-primary-50'
+                                                    : placement && editMode === 'crops' ? 'cursor-pointer' : ''
+                                                    } ${isDrawSelection && selectedCrop ? 'ring-2 ring-primary-400 ring-inset' : ''}`}
+                                                style={{
+                                                    backgroundColor: placement ? `${getCropColor(placement.crop_id)}30` : undefined,
+                                                }}
+                                                onMouseDown={(e) => {
+                                                    if (placement && editMode === 'crops') {
+                                                        e.stopPropagation()
+                                                        return
+                                                    }
+                                                    handleMouseDown(e, x, y)
+                                                }}
+                                                onMouseEnter={() => {
+                                                    if (placement) {
+                                                        setHoveredPlacement(placement)
+                                                        setHoveredCell({ x, y })
+                                                    }
+                                                    handleMouseEnter(x, y)
+                                                }}
+                                                onMouseLeave={() => {
+                                                    setHoveredPlacement(null)
+                                                    setHoveredCell(null)
+                                                }}
+                                                onMouseUp={handleMouseUp}
+                                                onClick={(e) => {
+                                                    if (placement && editMode === 'crops' && !isDrawing) {
+                                                        e.stopPropagation()
+                                                        setSelectedPlacement(placement)
+                                                    }
+                                                }}
+                                            >
+                                                {/* Show emoji for each cell in placement */}
+                                                {placement && (
+                                                    <span className="select-none" style={{ fontSize: '18px' }}>
+                                                        {getCropEmoji(placement.crop.name)}
+                                                    </span>
+                                                )}
+
+                                                {/* Hover tooltip - show only on the exact cell being hovered */}
+                                                {placement && hoveredCell?.x === x && hoveredCell?.y === y && (
+                                                    <div
+                                                        className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none"
+                                                        style={{ zIndex: 100 }}
+                                                    >
+                                                        {placement.crop.name} • {calculatePlantCount(placement)} plants
                                                     </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )
-                                })}
-                            </div>
+                                                )}
 
+                                                {/* Placement border overlay on origin cell */}
+                                                {isPlacementOrigin && (
+                                                    <div
+                                                        className="absolute inset-0 pointer-events-none"
+                                                        style={{
+                                                            width: placement.width_cells * cellSize,
+                                                            height: placement.height_cells * cellSize,
+                                                            border: `2px solid ${getCropColor(placement.crop_id)}`,
+                                                            borderRadius: '4px',
+                                                            zIndex: 10,
+                                                        }}
+                                                    />
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
                             {editMode === 'crops' && (
                                 <p className="text-center text-sm text-gray-500 mt-4">
                                     {selectedCrop
@@ -484,6 +528,74 @@ export default function BedsPage() {
                     </div>
                 )}
             </div>
+
+            {/* Placement Edit Popup */}
+            {selectedPlacement && (
+                <div
+                    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+                    onClick={() => setSelectedPlacement(null)}
+                >
+                    <div
+                        className="bg-white rounded-2xl shadow-xl p-6 w-80 max-w-[90vw]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center gap-3 mb-4">
+                            <span className="text-3xl">{getCropEmoji(selectedPlacement.crop.name)}</span>
+                            <div>
+                                <h3 className="font-semibold text-gray-900">{selectedPlacement.crop.name}</h3>
+                                <p className="text-sm text-gray-500">
+                                    {calculatePlantCount(selectedPlacement)} plants • {selectedPlacement.width_cells}×{selectedPlacement.height_cells} cells
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 mb-6">
+                            <div>
+                                <label className="block text-xs text-gray-500 mb-1">In-row spacing (between plants)</label>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="number"
+                                        value={selectedPlacement.custom_spacing_cm ?? selectedPlacement.crop.spacing_cm}
+                                        className="w-20 px-2 py-1 border border-gray-200 rounded text-sm"
+                                        readOnly
+                                    />
+                                    <span className="text-sm text-gray-500">cm</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-500 mb-1">Between rows</label>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="number"
+                                        value={selectedPlacement.custom_row_spacing_cm ?? selectedPlacement.crop.row_spacing_cm}
+                                        className="w-20 px-2 py-1 border border-gray-200 rounded text-sm"
+                                        readOnly
+                                    />
+                                    <span className="text-sm text-gray-500">cm</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setSelectedPlacement(null)}
+                                className="flex-1 px-4 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium"
+                            >
+                                Close
+                            </button>
+                            <button
+                                onClick={() => {
+                                    handleDeletePlacement(selectedPlacement.id)
+                                    setSelectedPlacement(null)
+                                }}
+                                className="flex-1 px-4 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-sm font-medium"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
