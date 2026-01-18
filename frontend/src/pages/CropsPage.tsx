@@ -1,30 +1,103 @@
-import { useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useEffect, useMemo } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useGardenStore } from '../store/gardenStore'
+import { useCropStore, type CropPlacement } from '../store/cropStore'
 import { Loader2, Sprout, Calendar } from 'lucide-react'
 
-// Mock crop data for timeline
-const mockCrops = [
-    { id: '1', name: 'Tomato', bed: 'Bed 1', status: 'growing', plantedDate: '2024-03-15', harvestDate: '2024-07-15' },
-    { id: '2', name: 'Lettuce', bed: 'Bed 1', status: 'planted', plantedDate: '2024-04-01', harvestDate: '2024-05-15' },
-    { id: '3', name: 'Carrot', bed: 'Bed 2', status: 'planned', plantedDate: '2024-04-15', harvestDate: '2024-08-01' },
-    { id: '4', name: 'Pepper', bed: 'Bed 2', status: 'growing', plantedDate: '2024-03-20', harvestDate: '2024-08-15' },
-    { id: '5', name: 'Cucumber', bed: 'Bed 3', status: 'harvested', plantedDate: '2024-02-01', harvestDate: '2024-04-15' },
-]
+// Crop emoji mapping
+const CROP_EMOJIS: Record<string, string> = {
+    'Tomato': '🍅',
+    'Lettuce': '🥬',
+    'Carrot': '🥕',
+    'Bell Pepper': '🫑',
+    'Pepper': '🫑',
+    'Cucumber': '🥒',
+    'Zucchini': '🥒',
+    'Green Bean': '🫛',
+    'Onion': '🧅',
+    'Garlic': '🧄',
+    'Potato': '🥔',
+    'Radish': '🌰',
+    'Spinach': '🥬',
+    'Broccoli': '🥦',
+    'Cabbage': '🥬',
+    'Pumpkin': '🎃',
+}
+
+const getCropEmoji = (cropName: string): string => {
+    return CROP_EMOJIS[cropName] || '🌱'
+}
+
+// Calculate plant count from placement
+const calculatePlantCount = (placement: CropPlacement): number => {
+    const spacingCm = placement.custom_spacing_cm || placement.crop.spacing_cm || 25
+    const rowSpacingCm = placement.custom_row_spacing_cm || placement.crop.row_spacing_cm || 25
+    const widthCm = placement.width_cells * 25
+    const heightCm = placement.height_cells * 25
+    const plantsPerRow = Math.floor(widthCm / spacingCm) || 1
+    const numRows = Math.floor(heightCm / rowSpacingCm) || 1
+    return plantsPerRow * numRows
+}
 
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+// Get timeline months based on status (simplified - assumes current year growing season)
+const getTimelineMonths = (status: string) => {
+    // Simplified timeline based on status
+    switch (status) {
+        case 'planted':
+            return { plantMonth: new Date().getMonth(), harvestMonth: new Date().getMonth() + 3 }
+        case 'growing':
+            return { plantMonth: new Date().getMonth() - 1, harvestMonth: new Date().getMonth() + 2 }
+        case 'harvested':
+            return { plantMonth: new Date().getMonth() - 3, harvestMonth: new Date().getMonth() }
+        case 'planned':
+        default:
+            return { plantMonth: new Date().getMonth() + 1, harvestMonth: new Date().getMonth() + 4 }
+    }
+}
 
 export default function CropsPage() {
     const { t } = useTranslation()
     const { gardenId } = useParams()
-    const { currentGarden, fetchGarden, isLoading } = useGardenStore()
+    const navigate = useNavigate()
+    const { currentGarden, beds, fetchGarden, fetchBeds, isLoading: gardenLoading } = useGardenStore()
+    const { gardenPlacements, fetchGardenPlacements, isLoading: cropsLoading } = useCropStore()
 
     useEffect(() => {
         if (gardenId) {
             fetchGarden(gardenId)
+            fetchBeds(gardenId)
+            fetchGardenPlacements(gardenId)
         }
-    }, [gardenId, fetchGarden])
+    }, [gardenId, fetchGarden, fetchBeds, fetchGardenPlacements])
+
+    // Group placements by crop
+    const placementsByCrop = useMemo(() => {
+        const grouped: Record<string, { cropName: string, placements: CropPlacement[], totalPlants: number }> = {}
+        for (const placement of gardenPlacements) {
+            const cropId = placement.crop_id
+            if (!grouped[cropId]) {
+                grouped[cropId] = {
+                    cropName: placement.crop.name,
+                    placements: [],
+                    totalPlants: 0
+                }
+            }
+            grouped[cropId].placements.push(placement)
+            grouped[cropId].totalPlants += calculatePlantCount(placement)
+        }
+        return Object.values(grouped)
+    }, [gardenPlacements])
+
+    const isLoading = gardenLoading || cropsLoading
+    const currentMonth = new Date().getMonth()
+
+    const getBedName = (bedId: string) => {
+        const bed = beds.find(b => b.id === bedId)
+        return bed?.name || 'Unknown Bed'
+    }
 
     if (isLoading && !currentGarden) {
         return (
@@ -34,8 +107,11 @@ export default function CropsPage() {
         )
     }
 
-    // Get current month for highlighting
-    const currentMonth = new Date().getMonth()
+    // Count by status
+    const statusCounts = gardenPlacements.reduce((acc, p) => {
+        acc[p.status] = (acc[p.status] || 0) + 1
+        return acc
+    }, {} as Record<string, number>)
 
     return (
         <div>
@@ -43,166 +119,196 @@ export default function CropsPage() {
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">{t('crop.title')}</h1>
-                    <p className="text-gray-500">{currentGarden?.name} • {mockCrops.length} crops planted</p>
+                    <p className="text-gray-500">{currentGarden?.name} • {placementsByCrop.length} crops planted</p>
                 </div>
             </div>
 
-            {/* Timeline Legend */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6">
-                <div className="flex items-center gap-6 text-sm">
-                    <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded bg-green-500" />
-                        <span className="text-gray-600">Planting Window</span>
+            {/* Empty State */}
+            {gardenPlacements.length === 0 && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
+                    <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <Sprout className="w-8 h-8 text-primary-600" />
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded bg-yellow-500" />
-                        <span className="text-gray-600">Care Period</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded bg-red-500" />
-                        <span className="text-gray-600">Harvest Window</span>
-                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-2">No crops planted yet</h2>
+                    <p className="text-gray-500 mb-4">
+                        Go to the Beds view to place crops in your garden beds.
+                    </p>
+                    <button
+                        onClick={() => navigate(`/garden/${gardenId}/beds`)}
+                        className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+                    >
+                        Go to Beds
+                    </button>
                 </div>
-            </div>
+            )}
 
-            {/* Crops Table with Timeline */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                {/* Month Headers */}
-                <div className="flex border-b border-gray-100">
-                    <div className="w-64 p-4 bg-gray-50 font-medium text-gray-700 shrink-0">
-                        Crop
-                    </div>
-                    <div className="flex-1 flex">
-                        {months.map((month, i) => (
-                            <div
-                                key={month}
-                                className={`flex-1 p-2 text-center text-sm font-medium border-l border-gray-100 ${i === currentMonth ? 'bg-primary-50 text-primary-700' : 'text-gray-500'
-                                    }`}
-                            >
-                                {month}
+            {gardenPlacements.length > 0 && (
+                <>
+                    {/* Timeline Legend */}
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-6">
+                        <div className="flex items-center gap-6 text-sm">
+                            <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 rounded bg-green-500" />
+                                <span className="text-gray-600">Planting Window</span>
                             </div>
-                        ))}
+                            <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 rounded bg-yellow-500" />
+                                <span className="text-gray-600">Care Period</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 rounded bg-red-500" />
+                                <span className="text-gray-600">Harvest Window</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
 
-                {/* Crop Rows */}
-                {mockCrops.map((crop) => {
-                    const plantMonth = new Date(crop.plantedDate).getMonth()
-                    const harvestMonth = new Date(crop.harvestDate).getMonth()
-                    const growingStart = plantMonth + 1
-                    const growingEnd = harvestMonth - 1
-
-                    return (
-                        <div key={crop.id} className="flex border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                            {/* Crop Info */}
-                            <div className="w-64 p-4 shrink-0">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${crop.status === 'harvested' ? 'bg-gray-100' :
-                                            crop.status === 'growing' ? 'bg-green-100' :
-                                                crop.status === 'planted' ? 'bg-blue-100' :
-                                                    'bg-yellow-100'
-                                        }`}>
-                                        <Sprout className={`w-5 h-5 ${crop.status === 'harvested' ? 'text-gray-500' :
-                                                crop.status === 'growing' ? 'text-green-600' :
-                                                    crop.status === 'planted' ? 'text-blue-600' :
-                                                        'text-yellow-600'
-                                            }`} />
+                    {/* Crops Table with Timeline */}
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                        {/* Month Headers */}
+                        <div className="flex border-b border-gray-100">
+                            <div className="w-64 p-4 bg-gray-50 font-medium text-gray-700 shrink-0">
+                                Crop
+                            </div>
+                            <div className="flex-1 flex">
+                                {months.map((month, i) => (
+                                    <div
+                                        key={month}
+                                        className={`flex-1 p-2 text-center text-sm font-medium border-l border-gray-100 ${i === currentMonth ? 'bg-primary-50 text-primary-700' : 'text-gray-500'
+                                            }`}
+                                    >
+                                        {month}
                                     </div>
-                                    <div>
-                                        <p className="font-medium text-gray-900">{crop.name}</p>
-                                        <p className="text-xs text-gray-500">{crop.bed}</p>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Crop Rows */}
+                        {placementsByCrop.map((cropGroup) => {
+                            // Use first placement's status to determine timeline
+                            const firstPlacement = cropGroup.placements[0]
+                            const { plantMonth, harvestMonth } = getTimelineMonths(firstPlacement.status)
+                            const growingStart = Math.min(plantMonth + 1, 11)
+                            const growingEnd = Math.max(harvestMonth - 1, 0)
+
+                            return (
+                                <div key={cropGroup.cropName} className="flex border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                                    {/* Crop Info */}
+                                    <div className="w-64 p-4 shrink-0">
+                                        <div className="flex items-start gap-3">
+                                            <div className="text-2xl mt-0.5">
+                                                {getCropEmoji(cropGroup.cropName)}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-medium text-gray-900">{cropGroup.cropName}</p>
+                                                <p className="text-xs text-gray-500 mb-1">
+                                                    {cropGroup.totalPlants} plants total
+                                                </p>
+                                                {/* Beds list */}
+                                                <div className="flex flex-wrap gap-1">
+                                                    {cropGroup.placements.map((placement) => (
+                                                        <span
+                                                            key={placement.id}
+                                                            onClick={() => navigate(`/garden/${gardenId}/beds?bed=${placement.bed_id}`)}
+                                                            className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded cursor-pointer hover:bg-primary-100 hover:text-primary-700 transition-colors"
+                                                        >
+                                                            {getBedName(placement.bed_id)}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Timeline */}
+                                    <div className="flex-1 flex items-center relative">
+                                        {months.map((_, i) => (
+                                            <div
+                                                key={i}
+                                                className={`flex-1 h-full border-l border-gray-100 ${i === currentMonth ? 'bg-primary-50/50' : ''
+                                                    }`}
+                                            />
+                                        ))}
+
+                                        {/* Planting bar */}
+                                        <div
+                                            className="absolute h-6 rounded-l-full bg-green-500"
+                                            style={{
+                                                left: `${(Math.max(0, Math.min(plantMonth, 11)) / 12) * 100}%`,
+                                                width: `${(1 / 12) * 100}%`,
+                                            }}
+                                        />
+
+                                        {/* Growing bar */}
+                                        {growingStart <= growingEnd && (
+                                            <div
+                                                className="absolute h-6 bg-yellow-500"
+                                                style={{
+                                                    left: `${(growingStart / 12) * 100}%`,
+                                                    width: `${((growingEnd - growingStart + 1) / 12) * 100}%`,
+                                                }}
+                                            />
+                                        )}
+
+                                        {/* Harvest bar */}
+                                        <div
+                                            className="absolute h-6 rounded-r-full bg-red-500"
+                                            style={{
+                                                left: `${(Math.max(0, Math.min(harvestMonth, 11)) / 12) * 100}%`,
+                                                width: `${(1 / 12) * 100}%`,
+                                            }}
+                                        />
                                     </div>
                                 </div>
-                            </div>
+                            )
+                        })}
+                    </div>
 
-                            {/* Timeline */}
-                            <div className="flex-1 flex items-center relative">
-                                {months.map((_, i) => (
-                                    <div
-                                        key={i}
-                                        className={`flex-1 h-full border-l border-gray-100 ${i === currentMonth ? 'bg-primary-50/50' : ''
-                                            }`}
-                                    />
-                                ))}
-
-                                {/* Planting bar */}
-                                <div
-                                    className="absolute h-6 rounded-l-full bg-green-500"
-                                    style={{
-                                        left: `${(plantMonth / 12) * 100}%`,
-                                        width: `${(1 / 12) * 100}%`,
-                                    }}
-                                />
-
-                                {/* Growing bar */}
-                                {growingStart <= growingEnd && (
-                                    <div
-                                        className="absolute h-6 bg-yellow-500"
-                                        style={{
-                                            left: `${(growingStart / 12) * 100}%`,
-                                            width: `${((growingEnd - growingStart + 1) / 12) * 100}%`,
-                                        }}
-                                    />
-                                )}
-
-                                {/* Harvest bar */}
-                                <div
-                                    className="absolute h-6 rounded-r-full bg-red-500"
-                                    style={{
-                                        left: `${(harvestMonth / 12) * 100}%`,
-                                        width: `${(1 / 12) * 100}%`,
-                                    }}
-                                />
+                    {/* Quick Stats */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center">
+                                    <Sprout className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-bold text-green-700">
+                                        {statusCounts['growing'] || 0}
+                                    </p>
+                                    <p className="text-sm text-green-600">{t('crop.growing')}</p>
+                                </div>
                             </div>
                         </div>
-                    )
-                })}
-            </div>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center">
-                            <Sprout className="w-5 h-5 text-white" />
+                        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
+                                    <Calendar className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-bold text-blue-700">
+                                        {(statusCounts['planted'] || 0) + (statusCounts['planned'] || 0)}
+                                    </p>
+                                    <p className="text-sm text-blue-600">{t('crop.planted')}</p>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-2xl font-bold text-green-700">
-                                {mockCrops.filter(c => c.status === 'growing').length}
-                            </p>
-                            <p className="text-sm text-green-600">{t('crop.growing')}</p>
+
+                        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-red-500 flex items-center justify-center">
+                                    <Sprout className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-bold text-red-700">
+                                        {statusCounts['harvested'] || 0}
+                                    </p>
+                                    <p className="text-sm text-red-600">{t('crop.harvest')}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
-                            <Calendar className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-blue-700">
-                                {mockCrops.filter(c => c.status === 'planted').length}
-                            </p>
-                            <p className="text-sm text-blue-600">{t('crop.planted')}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-red-500 flex items-center justify-center">
-                            <Sprout className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-red-700">
-                                {mockCrops.filter(c => c.status === 'harvested').length}
-                            </p>
-                            <p className="text-sm text-red-600">{t('crop.harvest')}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                </>
+            )}
         </div>
     )
 }

@@ -32,10 +32,12 @@ export interface CropPlacement {
 interface CropState {
     crops: Crop[]
     placements: CropPlacement[]
+    gardenPlacements: CropPlacement[]
     isLoading: boolean
     error: string | null
     fetchCrops: () => Promise<void>
     fetchPlacements: (bedId: string) => Promise<void>
+    fetchGardenPlacements: (gardenId: string) => Promise<void>
     createPlacement: (data: {
         bed_id: string
         crop_id: string
@@ -53,6 +55,7 @@ interface CropState {
 export const useCropStore = create<CropState>((set, get) => ({
     crops: [],
     placements: [],
+    gardenPlacements: [],
     isLoading: false,
     error: null,
 
@@ -71,6 +74,16 @@ export const useCropStore = create<CropState>((set, get) => ({
         try {
             const response = await api.get(`/api/crops/placements/bed/${bedId}`)
             set({ placements: response.data, isLoading: false })
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false })
+        }
+    },
+
+    fetchGardenPlacements: async (gardenId: string) => {
+        set({ isLoading: true, error: null })
+        try {
+            const response = await api.get(`/api/crops/placements/garden/${gardenId}`)
+            set({ gardenPlacements: response.data, isLoading: false })
         } catch (error: any) {
             set({ error: error.message, isLoading: false })
         }

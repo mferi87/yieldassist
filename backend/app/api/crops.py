@@ -126,6 +126,22 @@ async def list_crop_placements(
     return placements
 
 
+@router.get("/placements/garden/{garden_id}", response_model=List[CropPlacementResponse])
+async def list_garden_placements(
+    garden_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """List all crop placements across all beds in a garden."""
+    require_garden_access(db, garden_id, current_user.id)
+    
+    # Get all beds in the garden, then all placements in those beds
+    bed_ids = db.query(Bed.id).filter(Bed.garden_id == garden_id).all()
+    bed_id_list = [b.id for b in bed_ids]
+    
+    placements = db.query(CropPlacement).filter(CropPlacement.bed_id.in_(bed_id_list)).all()
+    return placements
+
 @router.post("/placements", response_model=CropPlacementResponse, status_code=status.HTTP_201_CREATED)
 async def create_crop_placement(
     placement_data: CropPlacementCreate,
