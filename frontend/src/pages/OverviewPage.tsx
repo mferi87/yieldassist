@@ -1,14 +1,40 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useGardenStore, type Bed } from '../store/gardenStore'
+import { useCropStore, type CropPlacement } from '../store/cropStore'
 import { Edit, Eye, Plus, Loader2, ArrowLeft, GripVertical, X, Pencil, Trash2 } from 'lucide-react'
+
+// Crop emoji mapping
+const CROP_EMOJIS: Record<string, string> = {
+    'Tomato': '🍅',
+    'Lettuce': '🥬',
+    'Carrot': '🥕',
+    'Bell Pepper': '🫑',
+    'Pepper': '🫑',
+    'Cucumber': '🥒',
+    'Zucchini': '🥒',
+    'Green Bean': '🫛',
+    'Onion': '🧅',
+    'Garlic': '🧄',
+    'Potato': '🥔',
+    'Radish': '🌰',
+    'Spinach': '🥬',
+    'Broccoli': '🥦',
+    'Cabbage': '🥬',
+    'Pumpkin': '🎃',
+}
+
+const getCropEmoji = (cropName: string): string => {
+    return CROP_EMOJIS[cropName] || '🌱'
+}
 
 export default function OverviewPage() {
     const { t } = useTranslation()
     const { gardenId } = useParams()
     const navigate = useNavigate()
     const { currentGarden, beds, fetchGarden, fetchBeds, createBed, updateBed, deleteBed, isLoading } = useGardenStore()
+    const { gardenPlacements, fetchGardenPlacements } = useCropStore()
     const [isEditMode, setIsEditMode] = useState(false)
     const [showBedPanel, setShowBedPanel] = useState(false)
     const [showBedModal, setShowBedModal] = useState(false)
@@ -21,8 +47,21 @@ export default function OverviewPage() {
         if (gardenId) {
             fetchGarden(gardenId)
             fetchBeds(gardenId)
+            fetchGardenPlacements(gardenId)
         }
-    }, [gardenId, fetchGarden, fetchBeds])
+    }, [gardenId, fetchGarden, fetchBeds, fetchGardenPlacements])
+
+    // Group placements by bed
+    const placementsByBed = useMemo(() => {
+        const grouped: Record<string, CropPlacement[]> = {}
+        for (const placement of gardenPlacements) {
+            if (!grouped[placement.bed_id]) {
+                grouped[placement.bed_id] = []
+            }
+            grouped[placement.bed_id].push(placement)
+        }
+        return grouped
+    }, [gardenPlacements])
 
     const handleAddBed = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -249,6 +288,7 @@ export default function OverviewPage() {
                                 bed={bed}
                                 cellSize={cellSize}
                                 isEditMode={isEditMode}
+                                placements={placementsByBed[bed.id] || []}
                                 onBedClick={(bedId) => navigate(`/garden/${gardenId}/beds?bed=${bedId}`)}
                             />
                         ))}
@@ -475,11 +515,13 @@ function BedComponent({
     bed,
     cellSize,
     isEditMode,
+    placements,
     onBedClick,
 }: {
     bed: Bed
     cellSize: number
     isEditMode: boolean
+    placements: CropPlacement[]
     onBedClick?: (bedId: string) => void
 }) {
     // Convert cells to meters (25cm per cell = 0.25m)
@@ -489,26 +531,59 @@ function BedComponent({
     const gridWidthCells = widthM * 2
     const gridHeightCells = heightM * 2
 
+    // Calculate bed pixel dimensions
+    const bedWidth = gridWidthCells * cellSize
+    const bedHeight = gridHeightCells * cellSize
+
     return (
         <div
-            className={`absolute rounded-lg border-2 transition-all ${isEditMode
+            className={`absolute rounded-lg border-2 transition-all overflow-hidden ${isEditMode
                 ? 'border-primary-400 bg-primary-100/80 cursor-move hover:border-primary-500'
                 : 'border-earth-400 bg-earth-100/80'
                 }`}
             style={{
                 left: bed.position_x * cellSize,
                 top: bed.position_y * cellSize,
-                width: gridWidthCells * cellSize,
-                height: gridHeightCells * cellSize,
+                width: bedWidth,
+                height: bedHeight,
             }}
             draggable={isEditMode}
             onDragStart={(e) => {
                 e.dataTransfer.setData('bedId', bed.id)
             }}
         >
-            <div className="absolute inset-0 flex items-center justify-center">
+            {/* Miniature crop placements */}
+            {placements.map((placement) => {
+                // Scale factor: overview cell = 0.5m = 2 bed cells (25cm each)
+                // So 1 bed cell = 0.25m = 0.5 overview cells
+                // Subtract 4px from dimensions to account for border-2 (2px on each side)
+                const scaleX = (bedWidth - 4) / bed.width_cells
+                const scaleY = (bedHeight - 4) / bed.height_cells
+
+                return (
+                    <div
+                        key={placement.id}
+                        className="absolute flex flex-wrap items-center justify-center opacity-80"
+                        style={{
+                            left: placement.position_x * scaleX,
+                            top: placement.position_y * scaleY,
+                            width: placement.width_cells * scaleX,
+                            height: placement.height_cells * scaleY,
+                            backgroundColor: 'rgba(255,255,255,0.4)',
+                            borderRadius: 2,
+                        }}
+                    >
+                        <span style={{ fontSize: Math.min(scaleX, scaleY, 16) }}>
+                            {getCropEmoji(placement.crop.name)}
+                        </span>
+                    </div>
+                )
+            })}
+
+            {/* Bed name label */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <span
-                    className={`text-sm font-medium text-earth-700 bg-white/80 px-2 py-1 rounded ${!isEditMode ? 'cursor-pointer hover:bg-white hover:text-primary-600' : ''}`}
+                    className={`text-xs font-medium text-earth-700 bg-white/90 px-1.5 py-0.5 rounded shadow-sm pointer-events-auto ${!isEditMode ? 'cursor-pointer hover:bg-white hover:text-primary-600' : ''}`}
                     onClick={(e) => {
                         if (!isEditMode && onBedClick) {
                             e.stopPropagation()

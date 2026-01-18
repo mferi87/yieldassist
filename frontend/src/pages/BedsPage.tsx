@@ -139,6 +139,19 @@ export default function BedsPage() {
         const width = maxX - minX + 1
         const height = maxY - minY + 1
 
+        // Check for collisions with existing placements
+        for (let x = minX; x <= maxX; x++) {
+            for (let y = minY; y <= maxY; y++) {
+                if (getPlacementAt(x, y)) {
+                    // Collision detected
+                    setIsDrawing(false)
+                    setDrawStart(null)
+                    setDrawEnd(null)
+                    return
+                }
+            }
+        }
+
         try {
             await createPlacement({
                 bed_id: selectedBed.id,
