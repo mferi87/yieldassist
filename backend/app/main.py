@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.core.database import engine, Base
-from app.api import auth_router, gardens_router, beds_router, crops_router
+from app.api import auth_router, gardens_router, beds_router, crops_router, users_router
 from app.seed_crops import seed_database
 
 # Import all models to ensure they're registered with Base before create_all
@@ -38,6 +38,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(gardens_router, prefix="/api")
 app.include_router(beds_router, prefix="/api")
 app.include_router(crops_router, prefix="/api")
+app.include_router(users_router, prefix="/api")
 
 
 @app.get("/")
