@@ -6,6 +6,7 @@ export interface Garden {
     name: string
     width_meters: number
     height_meters: number
+    preview_image?: string
     created_at: string
     role: 'admin' | 'editor' | 'viewer'
 }

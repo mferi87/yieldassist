@@ -61,6 +61,7 @@ async def list_gardens(
             name=garden.name,
             width_meters=garden.width_meters,
             height_meters=garden.height_meters,
+            preview_image=garden.preview_image,
             created_at=garden.created_at,
             role=membership.role
         ))
@@ -160,6 +161,7 @@ def _garden_to_response(garden: Garden, db: Session) -> GardenResponse:
         name=garden.name,
         width_meters=garden.width_meters,
         height_meters=garden.height_meters,
+        preview_image=garden.preview_image,
         created_by=garden.created_by,
         created_at=garden.created_at,
         members=members

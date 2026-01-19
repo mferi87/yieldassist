@@ -20,6 +20,7 @@ class Garden(Base):
     name = Column(String, nullable=False)
     width_meters = Column(Integer, nullable=False, default=10)
     height_meters = Column(Integer, nullable=False, default=10)
+    preview_image = Column(String, nullable=True)  # Base64 or URL for garden preview
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     

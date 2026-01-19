@@ -9,6 +9,7 @@ class GardenBase(BaseModel):
     name: str
     width_meters: int = 10
     height_meters: int = 10
+    preview_image: Optional[str] = None
 
 
 class GardenCreate(GardenBase):
@@ -19,6 +20,7 @@ class GardenUpdate(BaseModel):
     name: Optional[str] = None
     width_meters: Optional[int] = None
     height_meters: Optional[int] = None
+    preview_image: Optional[str] = None
 
 
 class GardenMemberResponse(BaseModel):
