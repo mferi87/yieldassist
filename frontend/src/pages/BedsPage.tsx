@@ -81,7 +81,7 @@ export default function BedsPage() {
         }
     }, [selectedCrop])
 
-    const cellSize = 40 // 25cm per cell, 40px for visibility
+    const cellSize = 25 // 25cm per cell, 40px for visibility
     const gridWidth = selectedBed?.width_cells || 4
     const gridHeight = selectedBed?.height_cells || 8
 
