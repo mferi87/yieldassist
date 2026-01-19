@@ -14,6 +14,13 @@ class CropBase(BaseModel):
     spacing_cm: int = 25  # In-row spacing (between plants)
     row_spacing_cm: int = 25  # Between-row spacing
     care_schedule: Dict[str, Any] = {}
+    # Timeline months (0 = January, 11 = December)
+    plant_month_start: Optional[int] = 3
+    plant_month_end: Optional[int] = 4
+    care_month_start: Optional[int] = 4
+    care_month_end: Optional[int] = 7
+    harvest_month_start: Optional[int] = 7
+    harvest_month_end: Optional[int] = 9
 
 
 class CropCreate(CropBase):
@@ -30,6 +37,12 @@ class CropUpdate(BaseModel):
     spacing_cm: Optional[int] = None
     row_spacing_cm: Optional[int] = None
     care_schedule: Optional[Dict[str, Any]] = None
+    plant_month_start: Optional[int] = None
+    plant_month_end: Optional[int] = None
+    care_month_start: Optional[int] = None
+    care_month_end: Optional[int] = None
+    harvest_month_start: Optional[int] = None
+    harvest_month_end: Optional[int] = None
     is_public: Optional[bool] = None
     is_approved: Optional[bool] = None
 

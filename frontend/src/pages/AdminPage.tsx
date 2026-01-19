@@ -515,6 +515,99 @@ export default function AdminPage() {
                                 />
                             </div>
 
+                            {/* Timeline Section */}
+                            <div className="border-t border-gray-200 pt-4 mt-4">
+                                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                    <span className="text-lg">📅</span> Growing Timeline
+                                </h3>
+
+                                <div className="grid grid-cols-3 gap-4">
+                                    {/* Planting Window */}
+                                    <div className="bg-green-50 rounded-lg p-3">
+                                        <label className="block text-xs font-medium text-green-700 mb-2">
+                                            🌱 Planting Window
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={cropForm.plant_month_start ?? 3}
+                                                onChange={(e) => setCropForm({ ...cropForm, plant_month_start: parseInt(e.target.value) })}
+                                                className="flex-1 text-xs px-2 py-1.5 border border-green-200 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                                            >
+                                                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                                                    <option key={i} value={i}>{m}</option>
+                                                ))}
+                                            </select>
+                                            <span className="text-xs text-gray-400 self-center">→</span>
+                                            <select
+                                                value={cropForm.plant_month_end ?? 4}
+                                                onChange={(e) => setCropForm({ ...cropForm, plant_month_end: parseInt(e.target.value) })}
+                                                className="flex-1 text-xs px-2 py-1.5 border border-green-200 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                                            >
+                                                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                                                    <option key={i} value={i}>{m}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Care Period */}
+                                    <div className="bg-yellow-50 rounded-lg p-3">
+                                        <label className="block text-xs font-medium text-yellow-700 mb-2">
+                                            🌿 Care Period
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={cropForm.care_month_start ?? 4}
+                                                onChange={(e) => setCropForm({ ...cropForm, care_month_start: parseInt(e.target.value) })}
+                                                className="flex-1 text-xs px-2 py-1.5 border border-yellow-200 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none"
+                                            >
+                                                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                                                    <option key={i} value={i}>{m}</option>
+                                                ))}
+                                            </select>
+                                            <span className="text-xs text-gray-400 self-center">→</span>
+                                            <select
+                                                value={cropForm.care_month_end ?? 7}
+                                                onChange={(e) => setCropForm({ ...cropForm, care_month_end: parseInt(e.target.value) })}
+                                                className="flex-1 text-xs px-2 py-1.5 border border-yellow-200 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none"
+                                            >
+                                                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                                                    <option key={i} value={i}>{m}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Harvest Window */}
+                                    <div className="bg-red-50 rounded-lg p-3">
+                                        <label className="block text-xs font-medium text-red-700 mb-2">
+                                            🍅 Harvest Window
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={cropForm.harvest_month_start ?? 7}
+                                                onChange={(e) => setCropForm({ ...cropForm, harvest_month_start: parseInt(e.target.value) })}
+                                                className="flex-1 text-xs px-2 py-1.5 border border-red-200 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
+                                            >
+                                                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                                                    <option key={i} value={i}>{m}</option>
+                                                ))}
+                                            </select>
+                                            <span className="text-xs text-gray-400 self-center">→</span>
+                                            <select
+                                                value={cropForm.harvest_month_end ?? 9}
+                                                onChange={(e) => setCropForm({ ...cropForm, harvest_month_end: parseInt(e.target.value) })}
+                                                className="flex-1 text-xs px-2 py-1.5 border border-red-200 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
+                                            >
+                                                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                                                    <option key={i} value={i}>{m}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="flex items-center justify-between pt-4">
                                 <label className="flex items-center gap-2 cursor-pointer">
                                     <div className="relative">

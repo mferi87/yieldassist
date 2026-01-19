@@ -184,11 +184,14 @@ export default function CropsPage() {
 
                         {/* Crop Rows */}
                         {placementsByCrop.map((cropGroup) => {
-                            // Use first placement's status to determine timeline
-                            const firstPlacement = cropGroup.placements[0]
-                            const { plantMonth, harvestMonth } = getTimelineMonths(firstPlacement.status)
-                            const growingStart = Math.min(plantMonth + 1, 11)
-                            const growingEnd = Math.max(harvestMonth - 1, 0)
+                            // Use crop's timeline fields
+                            const crop = cropGroup.placements[0].crop
+                            const plantStart = crop.plant_month_start ?? 3
+                            const plantEnd = crop.plant_month_end ?? 4
+                            const careStart = crop.care_month_start ?? 4
+                            const careEnd = crop.care_month_end ?? 7
+                            const harvestStart = crop.harvest_month_start ?? 7
+                            const harvestEnd = crop.harvest_month_end ?? 9
 
                             return (
                                 <div key={cropGroup.cropName} className="flex border-b border-gray-50 hover:bg-gray-50 transition-colors">
@@ -233,18 +236,18 @@ export default function CropsPage() {
                                         <div
                                             className="absolute h-6 rounded-l-full bg-green-500"
                                             style={{
-                                                left: `${(Math.max(0, Math.min(plantMonth, 11)) / 12) * 100}%`,
-                                                width: `${(1 / 12) * 100}%`,
+                                                left: `${(plantStart / 12) * 100}%`,
+                                                width: `${((plantEnd - plantStart + 1) / 12) * 100}%`,
                                             }}
                                         />
 
-                                        {/* Growing bar */}
-                                        {growingStart <= growingEnd && (
+                                        {/* Care/Growing bar */}
+                                        {careStart <= careEnd && (
                                             <div
                                                 className="absolute h-6 bg-yellow-500"
                                                 style={{
-                                                    left: `${(growingStart / 12) * 100}%`,
-                                                    width: `${((growingEnd - growingStart + 1) / 12) * 100}%`,
+                                                    left: `${(careStart / 12) * 100}%`,
+                                                    width: `${((careEnd - careStart + 1) / 12) * 100}%`,
                                                 }}
                                             />
                                         )}
@@ -253,8 +256,8 @@ export default function CropsPage() {
                                         <div
                                             className="absolute h-6 rounded-r-full bg-red-500"
                                             style={{
-                                                left: `${(Math.max(0, Math.min(harvestMonth, 11)) / 12) * 100}%`,
-                                                width: `${(1 / 12) * 100}%`,
+                                                left: `${(harvestStart / 12) * 100}%`,
+                                                width: `${((harvestEnd - harvestStart + 1) / 12) * 100}%`,
                                             }}
                                         />
                                     </div>

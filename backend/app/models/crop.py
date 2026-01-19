@@ -26,6 +26,15 @@ class Crop(Base):
     spacing_cm = Column(Integer, nullable=False, default=25)  # In-row spacing (between plants)
     row_spacing_cm = Column(Integer, nullable=False, default=25)  # Between-row spacing
     care_schedule = Column(JSON, default=dict)  # Planting, care, harvest info
+    
+    # Timeline months (0 = January, 11 = December)
+    plant_month_start = Column(Integer, nullable=True, default=3)  # April
+    plant_month_end = Column(Integer, nullable=True, default=4)    # May
+    care_month_start = Column(Integer, nullable=True, default=4)   # May
+    care_month_end = Column(Integer, nullable=True, default=7)     # August
+    harvest_month_start = Column(Integer, nullable=True, default=7) # August
+    harvest_month_end = Column(Integer, nullable=True, default=9)   # October
+    
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     is_public = Column(Boolean, default=False)
     is_approved = Column(Boolean, default=False)
