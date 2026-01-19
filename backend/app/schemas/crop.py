@@ -7,6 +7,7 @@ from app.models.crop import CropStatus
 
 class CropBase(BaseModel):
     name: str
+    icon: Optional[str] = None
     cells_width: int = 1
     cells_height: int = 1
     per_cell: int = 1
@@ -16,11 +17,13 @@ class CropBase(BaseModel):
 
 
 class CropCreate(CropBase):
-    pass
+    is_public: bool = False
+    is_approved: bool = False
 
 
 class CropUpdate(BaseModel):
     name: Optional[str] = None
+    icon: Optional[str] = None
     cells_width: Optional[int] = None
     cells_height: Optional[int] = None
     per_cell: Optional[int] = None

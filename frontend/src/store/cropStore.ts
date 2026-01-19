@@ -4,6 +4,7 @@ import { api } from '../api/client'
 export interface Crop {
     id: string
     name: string
+    icon?: string
     cells_width: number
     cells_height: number
     per_cell: number
@@ -50,7 +51,7 @@ interface CropState {
     }) => Promise<CropPlacement>
     updatePlacement: (id: string, data: Partial<CropPlacement>) => Promise<void>
     deletePlacement: (id: string) => Promise<void>
-    createCrop: (data: Omit<Crop, 'id' | 'is_public' | 'is_approved' | 'care_schedule'> & { care_schedule?: Record<string, any> }) => Promise<void>
+    createCrop: (data: Omit<Crop, 'id' | 'care_schedule'> & { care_schedule?: Record<string, any> }) => Promise<void>
     updateCrop: (id: string, data: Partial<Crop>) => Promise<void>
     deleteCrop: (id: string) => Promise<void>
 }
@@ -65,7 +66,7 @@ export const useCropStore = create<CropState>((set, get) => ({
     fetchCrops: async () => {
         set({ isLoading: true, error: null })
         try {
-            const response = await api.get('/api/crops/')
+            const response = await api.get('/api/crops/', { params: { include_private: true } })
             set({ crops: response.data, isLoading: false })
         } catch (error: any) {
             set({ error: error.message, isLoading: false })

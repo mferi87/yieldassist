@@ -19,28 +19,7 @@ function getCropColor(cropId: string): string {
     return CROP_COLORS[Math.abs(hash) % CROP_COLORS.length]
 }
 
-// Crop emoji mapping
-const CROP_EMOJIS: Record<string, string> = {
-    'Tomato': '🍅',
-    'Lettuce': '🥬',
-    'Carrot': '🥕',
-    'Bell Pepper': '🫑',
-    'Cucumber': '🥒',
-    'Zucchini': '🥒',
-    'Green Bean': '🫛',
-    'Onion': '🧅',
-    'Garlic': '🧄',
-    'Potato': '🥔',
-    'Radish': '🌰',
-    'Spinach': '🥬',
-    'Broccoli': '🥦',
-    'Cabbage': '🥬',
-    'Pumpkin': '🎃',
-}
-
-function getCropEmoji(cropName: string): string {
-    return CROP_EMOJIS[cropName] || '🌱'
-}
+import { getCropEmoji, isBase64Image } from '../utils/cropUtils'
 
 export default function BedsPage() {
     const { t } = useTranslation()
@@ -382,9 +361,15 @@ export default function BedsPage() {
                                             >
                                                 {/* Show emoji for each cell in placement */}
                                                 {placement && (
-                                                    <span className="select-none" style={{ fontSize: '18px' }}>
-                                                        {getCropEmoji(placement.crop.name)}
-                                                    </span>
+                                                    <div className="flex items-center justify-center w-full h-full select-none">
+                                                        {(() => {
+                                                            const emoji = getCropEmoji(placement.crop)
+                                                            if (isBase64Image(emoji)) {
+                                                                return <img src={emoji} alt={placement.crop.name} className="w-4 h-4 object-contain" />
+                                                            }
+                                                            return <span style={{ fontSize: '18px', lineHeight: 1 }}>{emoji}</span>
+                                                        })()}
+                                                    </div>
                                                 )}
 
                                                 {/* Hover tooltip - show only on the exact cell being hovered */}
@@ -519,6 +504,13 @@ export default function BedsPage() {
                                             className="w-3 h-3 rounded-full"
                                             style={{ backgroundColor: getCropColor(crop.id) }}
                                         />
+                                        {(() => {
+                                            const icon = getCropEmoji(crop)
+                                            if (isBase64Image(icon)) {
+                                                return <img src={icon} alt="" className="w-5 h-5 object-contain" />
+                                            }
+                                            return <span className="text-lg leading-none">{icon}</span>
+                                        })()}
                                         <p className="font-medium text-gray-900">{crop.name}</p>
                                     </div>
                                     <p className="text-xs text-gray-500 mt-1">

@@ -5,29 +5,7 @@ import { useGardenStore, type Bed } from '../store/gardenStore'
 import { useCropStore, type CropPlacement } from '../store/cropStore'
 import { Edit, Eye, Plus, Loader2, ArrowLeft, GripVertical, X, Pencil, Trash2 } from 'lucide-react'
 
-// Crop emoji mapping
-const CROP_EMOJIS: Record<string, string> = {
-    'Tomato': '🍅',
-    'Lettuce': '🥬',
-    'Carrot': '🥕',
-    'Bell Pepper': '🫑',
-    'Pepper': '🫑',
-    'Cucumber': '🥒',
-    'Zucchini': '🥒',
-    'Green Bean': '🫛',
-    'Onion': '🧅',
-    'Garlic': '🧄',
-    'Potato': '🥔',
-    'Radish': '🌰',
-    'Spinach': '🥬',
-    'Broccoli': '🥦',
-    'Cabbage': '🥬',
-    'Pumpkin': '🎃',
-}
-
-const getCropEmoji = (cropName: string): string => {
-    return CROP_EMOJIS[cropName] || '🌱'
-}
+import { getCropEmoji } from '../utils/cropUtils'
 
 export default function OverviewPage() {
     const { t } = useTranslation()
@@ -574,7 +552,7 @@ function BedComponent({
                         }}
                     >
                         <span style={{ fontSize: Math.min(scaleX, scaleY, 16) }}>
-                            {getCropEmoji(placement.crop.name)}
+                            {getCropEmoji(placement.crop)}
                         </span>
                     </div>
                 )

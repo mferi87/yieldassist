@@ -45,11 +45,20 @@ async def create_crop(
     db: Session = Depends(get_db)
 ):
     """Create a new crop. New crops are private until approved by global admin."""
+    # Default values
+    is_public = False
+    is_approved = False
+    
+    # Allow global admin to set public/approved status immediately
+    if current_user.is_global_admin:
+        is_public = crop_data.is_public
+        is_approved = crop_data.is_approved
+
     crop = Crop(
-        **crop_data.model_dump(),
+        **crop_data.model_dump(exclude={'is_public', 'is_approved'}),
         created_by=current_user.id,
-        is_public=False,
-        is_approved=False
+        is_public=is_public,
+        is_approved=is_approved
     )
     db.add(crop)
     db.commit()

@@ -13,8 +13,11 @@ import {
     MoreVertical,
     CheckCircle,
     XCircle,
+    Globe,
+    Upload,
     Loader2
 } from 'lucide-react'
+import { getCropEmoji, isBase64Image } from '../utils/cropUtils'
 
 export default function AdminPage() {
     const { t } = useTranslation()
@@ -143,6 +146,7 @@ export default function AdminPage() {
                 <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Icon</th>
                             <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Crop</th>
                             <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Dimensions (Cells)</th>
                             <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Spacing (cm)</th>
@@ -154,6 +158,17 @@ export default function AdminPage() {
                     <tbody className="divide-y divide-gray-200">
                         {filteredCrops.map((crop) => (
                             <tr key={crop.id} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="flex items-center justify-center w-10 h-10 bg-gray-100 rounded-lg text-xl">
+                                        {(() => {
+                                            const emoji = getCropEmoji(crop)
+                                            if (isBase64Image(emoji)) {
+                                                return <img src={emoji} alt={crop.name} className="w-8 h-8 object-contain" />
+                                            }
+                                            return <span>{emoji}</span>
+                                        })()}
+                                    </div>
+                                </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="font-medium text-gray-900">{crop.name}</div>
                                 </td>
@@ -216,17 +231,68 @@ export default function AdminPage() {
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Crop Name
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                                />
+                            <div className="grid grid-cols-4 gap-4">
+                                <div className="col-span-1">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Icon
+                                    </label>
+                                    <div className="flex gap-2 items-center h-[42px]">
+                                        {(formData.icon?.startsWith('http') || formData.icon?.startsWith('data:')) ? (
+                                            <div className="w-[42px] h-[42px] border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
+                                                <img
+                                                    src={formData.icon}
+                                                    alt="Icon"
+                                                    className="w-full h-full object-contain"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="relative flex-1">
+                                                <input
+                                                    type="text"
+                                                    value={formData.icon || ''}
+                                                    onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+                                                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                                                    placeholder="🍅 or URL"
+                                                />
+                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-xl">
+                                                    {formData.icon ? formData.icon : '🌱'}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <label className="flex items-center justify-center w-[42px] h-[42px] bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors shrink-0" title="Upload Image">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0]
+                                                    if (file) {
+                                                        const reader = new FileReader()
+                                                        reader.onloadend = () => {
+                                                            setFormData({ ...formData, icon: reader.result as string })
+                                                        }
+                                                        reader.readAsDataURL(file)
+                                                    }
+                                                }}
+                                            />
+                                            <Upload className="w-4 h-4 text-gray-600" />
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className="col-span-3">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Crop Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.icon?.startsWith('http') || formData.icon?.startsWith('data:') ? formData.name : formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                                    />
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -296,26 +362,45 @@ export default function AdminPage() {
                                 />
                             </div>
 
-                            <div className="flex justify-end gap-3 pt-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="flex items-center gap-2 px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
-                                >
-                                    <Save className="w-4 h-4" />
-                                    Save Crop
-                                </button>
+                            <div className="flex items-center justify-between pt-4">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <div className="relative">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.is_public || false}
+                                            onChange={(e) => setFormData({ ...formData, is_public: e.target.checked })}
+                                            className="sr-only peer"
+                                        />
+                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-sm font-medium text-gray-700">
+                                        <Globe className="w-4 h-4" />
+                                        <span>Public</span>
+                                    </div>
+                                </label>
+
+                                <div className="flex gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsModalOpen(false)}
+                                        className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="flex items-center gap-2 px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+                                    >
+                                        <Save className="w-4 h-4" />
+                                        Save Crop
+                                    </button>
+                                </div>
                             </div>
                         </form>
                     </div>
-                </div>
-            )}
-        </div>
+                </div >
+            )
+            }
+        </div >
     )
 }
