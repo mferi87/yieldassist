@@ -205,13 +205,13 @@ export default function CropsPage() {
                                                 </p>
                                                 {/* Beds list */}
                                                 <div className="flex flex-wrap gap-1">
-                                                    {cropGroup.placements.map((placement) => (
+                                                    {Array.from(new Set(cropGroup.placements.map(p => p.bed_id))).map((bedId) => (
                                                         <span
-                                                            key={placement.id}
-                                                            onClick={() => navigate(`/garden/${gardenId}/beds?bed=${placement.bed_id}`)}
+                                                            key={bedId}
+                                                            onClick={() => navigate(`/garden/${gardenId}/beds?bed=${bedId}`)}
                                                             className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded cursor-pointer hover:bg-primary-100 hover:text-primary-700 transition-colors"
                                                         >
-                                                            {getBedName(placement.bed_id)}
+                                                            {getBedName(bedId)}
                                                         </span>
                                                     ))}
                                                 </div>
