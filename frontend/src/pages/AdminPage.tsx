@@ -245,11 +245,11 @@ export default function AdminPage() {
                                         filteredCrops.map((crop) => (
                                             <tr key={crop.id} className="hover:bg-gray-50 transition-colors group">
                                                 <td className="py-3 px-4">
-                                                    <div className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg text-xl border border-gray-200">
+                                                    <div className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg border border-gray-200">
                                                         {crop.icon?.startsWith('data:') || crop.icon?.startsWith('http') ? (
-                                                            <img src={crop.icon} alt={crop.name} className="w-full h-full object-contain rounded-lg" />
+                                                            <img src={crop.icon} alt={crop.name} className="w-8 h-8 object-contain rounded" />
                                                         ) : (
-                                                            <span>{getCropEmoji(crop)}</span>
+                                                            <span className="text-2xl leading-none">{getCropEmoji(crop)}</span>
                                                         )}
                                                     </div>
                                                 </td>

@@ -365,9 +365,9 @@ export default function BedsPage() {
                                                         {(() => {
                                                             const emoji = getCropEmoji(placement.crop)
                                                             if (isBase64Image(emoji)) {
-                                                                return <img src={emoji} alt={placement.crop.name} className="w-4 h-4 object-contain" />
+                                                                return <img src={emoji} alt={placement.crop.name} className="w-5 h-5 object-contain" />
                                                             }
-                                                            return <span style={{ fontSize: '18px', lineHeight: 1 }}>{emoji}</span>
+                                                            return <span className="text-xl leading-none">{emoji}</span>
                                                         })()}
                                                     </div>
                                                 )}
@@ -507,9 +507,9 @@ export default function BedsPage() {
                                         {(() => {
                                             const icon = getCropEmoji(crop)
                                             if (isBase64Image(icon)) {
-                                                return <img src={icon} alt="" className="w-5 h-5 object-contain" />
+                                                return <img src={icon} alt="" className="w-6 h-6 object-contain" />
                                             }
-                                            return <span className="text-lg leading-none">{icon}</span>
+                                            return <span className="text-2xl leading-none">{icon}</span>
                                         })()}
                                         <p className="font-medium text-gray-900">{crop.name}</p>
                                     </div>
