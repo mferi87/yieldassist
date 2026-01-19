@@ -551,9 +551,14 @@ function BedComponent({
                             borderRadius: 2,
                         }}
                     >
-                        <span style={{ fontSize: Math.min(scaleX, scaleY, 16) }}>
-                            {getCropEmoji(placement.crop)}
-                        </span>
+                        {(() => {
+                            const icon = getCropEmoji(placement.crop)
+                            const iconSize = Math.min(scaleX, scaleY, 16)
+                            if (icon.startsWith('data:') || icon.startsWith('http')) {
+                                return <img src={icon} alt={placement.crop.name} style={{ width: iconSize, height: iconSize, objectFit: 'contain' }} />
+                            }
+                            return <span style={{ fontSize: iconSize }}>{icon}</span>
+                        })()}
                     </div>
                 )
             })}
