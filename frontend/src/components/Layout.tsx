@@ -36,7 +36,7 @@ export default function Layout() {
                                 <Sprout className="w-6 h-6 text-white" />
                             </div>
                             <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent">
-                                YieldAssist
+                                YieldAssist α
                             </span>
                         </NavLink>
 
