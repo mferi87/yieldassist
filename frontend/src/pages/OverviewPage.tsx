@@ -90,6 +90,8 @@ export default function OverviewPage() {
             name: bed.name,
             width_m: (bed.width_cells * 25) / 100,
             height_m: (bed.height_cells * 25) / 100,
+            position_x: bed.position_x,
+            position_y: bed.position_y,
         })
     }
 
@@ -200,7 +202,13 @@ export default function OverviewPage() {
                                         </div>
                                         <div
                                             className="flex-1 min-w-0 cursor-pointer hover:text-primary-600"
-                                            onClick={() => navigate(`/garden/${gardenId}/beds?bed=${bed.id}`)}
+                                            onClick={() => {
+                                                if (isEditMode) {
+                                                    openEditModal(bed)
+                                                } else {
+                                                    navigate(`/garden/${gardenId}/beds?bed=${bed.id}`)
+                                                }
+                                            }}
                                         >
                                             <p className="font-medium text-gray-900 text-sm truncate hover:text-primary-600">{bed.name}</p>
                                             <p className="text-xs text-gray-500">
@@ -337,6 +345,7 @@ export default function OverviewPage() {
                                 isEditMode={isEditMode}
                                 placements={placementsByBed[bed.id] || []}
                                 onBedClick={(bedId) => navigate(`/garden/${gardenId}/beds?bed=${bedId}`)}
+                                onEditBed={(bed) => openEditModal(bed)}
                             />
                         ))}
                     </div>
@@ -564,12 +573,14 @@ function BedComponent({
     isEditMode,
     placements,
     onBedClick,
+    onEditBed,
 }: {
     bed: Bed
     cellSize: number
     isEditMode: boolean
     placements: CropPlacement[]
     onBedClick?: (bedId: string) => void
+    onEditBed?: (bed: Bed) => void
 }) {
     // Convert cells to meters (25cm per cell = 0.25m)
     const widthM = (bed.width_cells * 25) / 100
@@ -641,10 +652,12 @@ function BedComponent({
             {/* Bed name label */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <span
-                    className={`text-xs font-medium text-earth-700 bg-white/90 px-1.5 py-0.5 rounded shadow-sm pointer-events-auto ${!isEditMode ? 'cursor-pointer hover:bg-white hover:text-primary-600' : ''}`}
+                    className={`text-xs font-medium text-earth-700 bg-white/90 px-1.5 py-0.5 rounded shadow-sm pointer-events-auto cursor-pointer hover:bg-white hover:text-primary-600`}
                     onClick={(e) => {
-                        if (!isEditMode && onBedClick) {
-                            e.stopPropagation()
+                        e.stopPropagation()
+                        if (isEditMode && onEditBed) {
+                            onEditBed(bed)
+                        } else if (!isEditMode && onBedClick) {
                             onBedClick(bed.id)
                         }
                     }}
