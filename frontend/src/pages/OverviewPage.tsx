@@ -19,7 +19,12 @@ export default function OverviewPage() {
     const [editingBed, setEditingBed] = useState<Bed | null>(null)
     const [deletingBed, setDeletingBed] = useState<Bed | null>(null)
     const [deleteConfirmName, setDeleteConfirmName] = useState('')
-    const [newBed, setNewBed] = useState({ name: '', width_m: 1, height_m: 2 })
+    const [newBed, setNewBed] = useState({ name: '', width_m: 1, height_m: 2, position_x: 0, position_y: 0 })
+
+    // Drag-to-create bed state
+    const [isDragging, setIsDragging] = useState(false)
+    const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null)
+    const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null)
 
     useEffect(() => {
         if (gardenId) {
@@ -47,14 +52,17 @@ export default function OverviewPage() {
         await createBed({
             garden_id: gardenId,
             name: newBed.name || `Bed ${beds.length + 1}`,
-            width_cells: newBed.width_m * 4,  // 4 cells per meter (25cm each)
-            height_cells: newBed.height_m * 4,
-            position_x: 0,
-            position_y: 0,
+            width_cells: Math.round(newBed.width_m * 4),  // 4 cells per meter (25cm each)
+            height_cells: Math.round(newBed.height_m * 4),
+            position_x: newBed.position_x,
+            position_y: newBed.position_y,
         })
         setShowBedModal(false)
         setEditingBed(null)
-        setNewBed({ name: '', width_m: 1, height_m: 2 })
+        setNewBed({ name: '', width_m: 1, height_m: 2, position_x: 0, position_y: 0 })
+        setIsDragging(false)
+        setDragStart(null)
+        setDragEnd(null)
     }
 
     const handleEditBed = async (e: React.FormEvent) => {
@@ -243,6 +251,7 @@ export default function OverviewPage() {
                             backgroundColor: '#fafafa',
                             borderRadius: '8px',
                             border: '1px solid #9ca3af',
+                            cursor: isEditMode ? 'crosshair' : 'default',
                         }}
                         onDragOver={(e) => {
                             if (isEditMode) {
@@ -258,7 +267,67 @@ export default function OverviewPage() {
                             const y = Math.floor((e.clientY - rect.top) / cellSize)
                             handleBedDrag(bedId, x, y)
                         }}
+                        onMouseDown={(e) => {
+                            if (!isEditMode) return
+                            // Don't start drag if clicking on a bed
+                            if ((e.target as HTMLElement).closest('[data-bed]')) return
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            const x = Math.floor((e.clientX - rect.left) / cellSize)
+                            const y = Math.floor((e.clientY - rect.top) / cellSize)
+                            setIsDragging(true)
+                            setDragStart({ x, y })
+                            setDragEnd({ x, y })
+                        }}
+                        onMouseMove={(e) => {
+                            if (!isDragging || !isEditMode) return
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            const x = Math.floor((e.clientX - rect.left) / cellSize)
+                            const y = Math.floor((e.clientY - rect.top) / cellSize)
+                            setDragEnd({ x, y })
+                        }}
+                        onMouseUp={() => {
+                            if (!isDragging || !dragStart || !dragEnd) return
+                            const minX = Math.min(dragStart.x, dragEnd.x)
+                            const maxX = Math.max(dragStart.x, dragEnd.x)
+                            const minY = Math.min(dragStart.y, dragEnd.y)
+                            const maxY = Math.max(dragStart.y, dragEnd.y)
+                            const widthCells = maxX - minX + 1
+                            const heightCells = maxY - minY + 1
+
+                            // Minimum 1 cell in each direction
+                            if (widthCells >= 1 && heightCells >= 1) {
+                                setNewBed({
+                                    name: '',
+                                    width_m: widthCells * 0.5, // Each cell is 0.5m
+                                    height_m: heightCells * 0.5,
+                                    position_x: minX,
+                                    position_y: minY,
+                                })
+                                setShowBedModal(true)
+                            }
+                            setIsDragging(false)
+                        }}
+                        onMouseLeave={() => {
+                            if (isDragging) {
+                                setIsDragging(false)
+                                setDragStart(null)
+                                setDragEnd(null)
+                            }
+                        }}
                     >
+                        {/* Drag Preview */}
+                        {isDragging && dragStart && dragEnd && (
+                            <div
+                                className="absolute bg-primary-200/50 border-2 border-dashed border-primary-500 pointer-events-none"
+                                style={{
+                                    left: Math.min(dragStart.x, dragEnd.x) * cellSize,
+                                    top: Math.min(dragStart.y, dragEnd.y) * cellSize,
+                                    width: (Math.abs(dragEnd.x - dragStart.x) + 1) * cellSize,
+                                    height: (Math.abs(dragEnd.y - dragStart.y) + 1) * cellSize,
+                                }}
+                            />
+                        )}
+
                         {/* Beds */}
                         {beds.map((bed) => (
                             <BedComponent
@@ -515,9 +584,10 @@ function BedComponent({
 
     return (
         <div
+            data-bed
             className={`absolute rounded-lg border-2 transition-all overflow-hidden ${isEditMode
                 ? 'border-primary-400 bg-primary-100/80 cursor-move hover:border-primary-500'
-                : 'border-earth-400 bg-earth-100/80'
+                : 'border-earth-400 bg-earth-100/80 cursor-pointer hover:shadow-lg'
                 }`}
             style={{
                 left: bed.position_x * cellSize,
@@ -528,6 +598,11 @@ function BedComponent({
             draggable={isEditMode}
             onDragStart={(e) => {
                 e.dataTransfer.setData('bedId', bed.id)
+            }}
+            onClick={() => {
+                if (!isEditMode && onBedClick) {
+                    onBedClick(bed.id)
+                }
             }}
         >
             {/* Miniature crop placements */}
