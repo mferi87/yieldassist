@@ -478,18 +478,57 @@ export default function BedsPage() {
                                                     }
                                                 }}
                                             >
-                                                {/* Show emoji for each cell in placement */}
-                                                {placement && (
-                                                    <div className="flex items-center justify-center w-full h-full select-none">
-                                                        {(() => {
-                                                            const emoji = getCropEmoji(placement.crop)
-                                                            if (isBase64Image(emoji)) {
-                                                                return <img src={emoji} alt={placement.crop.name} className="w-5 h-5 object-contain" />
-                                                            }
-                                                            return <span className="text-xl leading-none">{emoji}</span>
-                                                        })()}
-                                                    </div>
-                                                )}
+                                                {/* Show emoji for each cell in placement if it corresponds to a plant location */}
+                                                {placement && (() => {
+                                                    // Determine if we should render an icon in this cell
+                                                    // Logic: Check if any plant center falls within this cell's area
+                                                    const relX = x - placement.position_x
+                                                    const relY = y - placement.position_y
+
+                                                    const spacing = placement.custom_spacing_cm ?? placement.crop.spacing_cm
+                                                    const rowSpacing = placement.custom_row_spacing_cm ?? placement.crop.row_spacing_cm
+
+                                                    // Max number of plants that fit in the placement
+                                                    const widthCm = placement.width_cells * 25
+                                                    const heightCm = placement.height_cells * 25
+                                                    const maxPlantsX = Math.max(1, Math.floor(widthCm / spacing))
+                                                    const maxPlantsY = Math.max(1, Math.floor(heightCm / rowSpacing))
+
+                                                    // Check X axis: does a plant center fall in this cell?
+                                                    // Plant i center is at: i * spacing + spacing/2
+                                                    // Cell covers range: [relX * 25, (relX + 1) * 25)
+                                                    // We need integer i such that:
+                                                    // relX * 25 <= i * spacing + spacing/2 < (relX + 1) * 25
+                                                    // (relX * 25)/spacing - 0.5 <= i < ((relX + 1) * 25)/spacing - 0.5
+
+                                                    const lowerX = (relX * 25) / spacing - 0.5
+                                                    const upperX = ((relX + 1) * 25) / spacing - 0.5
+                                                    const firstPlantIndexX = Math.ceil(lowerX)
+
+                                                    // Check if valid plant index exists in this cell range
+                                                    const hasPlantX = firstPlantIndexX < upperX && firstPlantIndexX >= 0 && firstPlantIndexX < maxPlantsX
+
+                                                    // Check Y axis
+                                                    const lowerY = (relY * 25) / rowSpacing - 0.5
+                                                    const upperY = ((relY + 1) * 25) / rowSpacing - 0.5
+                                                    const firstPlantIndexY = Math.ceil(lowerY)
+
+                                                    const hasPlantY = firstPlantIndexY < upperY && firstPlantIndexY >= 0 && firstPlantIndexY < maxPlantsY
+
+                                                    if (hasPlantX && hasPlantY) {
+                                                        const emoji = getCropEmoji(placement.crop)
+                                                        return (
+                                                            <div className="flex items-center justify-center w-full h-full select-none">
+                                                                {isBase64Image(emoji) ? (
+                                                                    <img src={emoji} alt={placement.crop.name} className="w-5 h-5 object-contain" />
+                                                                ) : (
+                                                                    <span className="text-xl leading-none">{emoji}</span>
+                                                                )}
+                                                            </div>
+                                                        )
+                                                    }
+                                                    return null
+                                                })()}
 
                                                 {/* Hover tooltip - show only on the exact cell being hovered */}
                                                 {placement && hoveredCell?.x === x && hoveredCell?.y === y && (
