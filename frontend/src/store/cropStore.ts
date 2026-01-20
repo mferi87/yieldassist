@@ -5,9 +5,6 @@ export interface Crop {
     id: string
     name: string
     icon?: string
-    cells_width: number
-    cells_height: number
-    per_cell: number
     spacing_cm: number
     row_spacing_cm: number
     care_schedule: Record<string, any>

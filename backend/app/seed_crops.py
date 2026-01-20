@@ -9,9 +9,6 @@ from app.models.crop import Crop
 SEED_CROPS = [
     {
         "name": "Tomato",
-        "cells_width": 1,
-        "cells_height": 1,
-        "per_cell": 1,
         "spacing_cm": 50,
         "row_spacing_cm": 80,
         "care_schedule": {
@@ -26,9 +23,6 @@ SEED_CROPS = [
     },
     {
         "name": "Lettuce",
-        "cells_width": 1,
-        "cells_height": 1,
-        "per_cell": 4,
         "spacing_cm": 20,
         "row_spacing_cm": 30,
         "care_schedule": {
@@ -43,9 +37,6 @@ SEED_CROPS = [
     },
     {
         "name": "Carrot",
-        "cells_width": 1,
-        "cells_height": 1,
-        "per_cell": 16,
         "spacing_cm": 5,
         "row_spacing_cm": 20,
         "care_schedule": {
@@ -60,9 +51,6 @@ SEED_CROPS = [
     },
     {
         "name": "Bell Pepper",
-        "cells_width": 1,
-        "cells_height": 1,
-        "per_cell": 1,
         "spacing_cm": 45,
         "row_spacing_cm": 60,
         "care_schedule": {
@@ -77,9 +65,6 @@ SEED_CROPS = [
     },
     {
         "name": "Cucumber",
-        "cells_width": 2,
-        "cells_height": 1,
-        "per_cell": 1,
         "spacing_cm": 40,
         "row_spacing_cm": 100,
         "care_schedule": {
@@ -94,9 +79,6 @@ SEED_CROPS = [
     },
     {
         "name": "Zucchini",
-        "cells_width": 2,
-        "cells_height": 2,
-        "per_cell": 1,
         "spacing_cm": 60,
         "row_spacing_cm": 100,
         "care_schedule": {
@@ -111,9 +93,6 @@ SEED_CROPS = [
     },
     {
         "name": "Pumpkin",
-        "cells_width": 3,
-        "cells_height": 1,
-        "per_cell": 1,
         "spacing_cm": 100,
         "row_spacing_cm": 200,
         "care_schedule": {
@@ -128,9 +107,6 @@ SEED_CROPS = [
     },
     {
         "name": "Radish",
-        "cells_width": 1,
-        "cells_height": 1,
-        "per_cell": 16,
         "spacing_cm": 5,
         "row_spacing_cm": 15,
         "care_schedule": {
@@ -145,9 +121,6 @@ SEED_CROPS = [
     },
     {
         "name": "Spinach",
-        "cells_width": 1,
-        "cells_height": 1,
-        "per_cell": 9,
         "spacing_cm": 10,
         "row_spacing_cm": 30,
         "care_schedule": {
@@ -162,9 +135,6 @@ SEED_CROPS = [
     },
     {
         "name": "Green Bean",
-        "cells_width": 1,
-        "cells_height": 1,
-        "per_cell": 4,
         "spacing_cm": 10,
         "row_spacing_cm": 45,
         "care_schedule": {
@@ -179,9 +149,6 @@ SEED_CROPS = [
     },
     {
         "name": "Onion",
-        "cells_width": 1,
-        "cells_height": 1,
-        "per_cell": 9,
         "spacing_cm": 10,
         "row_spacing_cm": 25,
         "care_schedule": {
@@ -196,9 +163,6 @@ SEED_CROPS = [
     },
     {
         "name": "Garlic",
-        "cells_width": 1,
-        "cells_height": 1,
-        "per_cell": 9,
         "spacing_cm": 10,
         "row_spacing_cm": 25,
         "care_schedule": {
@@ -213,9 +177,6 @@ SEED_CROPS = [
     },
     {
         "name": "Broccoli",
-        "cells_width": 2,
-        "cells_height": 2,
-        "per_cell": 1,
         "spacing_cm": 45,
         "row_spacing_cm": 60,
         "care_schedule": {
@@ -230,9 +191,6 @@ SEED_CROPS = [
     },
     {
         "name": "Cabbage",
-        "cells_width": 2,
-        "cells_height": 2,
-        "per_cell": 1,
         "spacing_cm": 45,
         "row_spacing_cm": 60,
         "care_schedule": {
@@ -247,9 +205,6 @@ SEED_CROPS = [
     },
     {
         "name": "Eggplant",
-        "cells_width": 1,
-        "cells_height": 1,
-        "per_cell": 1,
         "spacing_cm": 50,
         "row_spacing_cm": 75,
         "care_schedule": {

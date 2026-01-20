@@ -40,11 +40,8 @@ export default function AdminPage() {
     const [editingCrop, setEditingCrop] = useState<Crop | null>(null)
     const [cropForm, setCropForm] = useState<Partial<Crop>>({
         name: '',
-        per_cell: 1,
         spacing_cm: 25,
         row_spacing_cm: 25,
-        cells_width: 1,
-        cells_height: 1,
     })
 
     useEffect(() => {
@@ -76,11 +73,8 @@ export default function AdminPage() {
             setEditingCrop(null)
             setCropForm({
                 name: '',
-                per_cell: 1,
                 spacing_cm: 25,
                 row_spacing_cm: 25,
-                cells_width: 1,
-                cells_height: 1,
                 is_public: true,
                 is_approved: true,
             })
@@ -96,11 +90,8 @@ export default function AdminPage() {
             } else {
                 const newCropData = {
                     name: cropForm.name || 'New Crop',
-                    per_cell: cropForm.per_cell || 1,
                     spacing_cm: cropForm.spacing_cm || 25,
                     row_spacing_cm: cropForm.row_spacing_cm || 25,
-                    cells_width: cropForm.cells_width || 1,
-                    cells_height: cropForm.cells_height || 1,
                     is_public: cropForm.is_public,
                     is_approved: cropForm.is_approved,
                     icon: cropForm.icon
@@ -228,16 +219,15 @@ export default function AdminPage() {
                                     <tr className="bg-gray-50 text-gray-600 text-sm border-b border-gray-200">
                                         <th className="py-3 px-4 font-semibold">Icon</th>
                                         <th className="py-3 px-4 font-semibold">Name</th>
-                                        <th className="py-3 px-4 font-semibold">Width</th>
-                                        <th className="py-3 px-4 font-semibold">Height</th>
-                                        <th className="py-3 px-4 font-semibold">Spacing</th>
+                                        <th className="py-3 px-4 font-semibold">In-row Spacing</th>
+                                        <th className="py-3 px-4 font-semibold">Row Spacing</th>
                                         <th className="py-3 px-4 font-semibold text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {filteredCrops.length === 0 ? (
                                         <tr>
-                                            <td colSpan={6} className="py-8 text-center text-gray-500">
+                                            <td colSpan={5} className="py-8 text-center text-gray-500">
                                                 No crops found.
                                             </td>
                                         </tr>
@@ -261,9 +251,8 @@ export default function AdminPage() {
                                                         </span>
                                                     )}
                                                 </td>
-                                                <td className="py-3 px-4 text-gray-600">{crop.cells_width}</td>
-                                                <td className="py-3 px-4 text-gray-600">{crop.cells_height}</td>
                                                 <td className="py-3 px-4 text-gray-600">{crop.spacing_cm} cm</td>
+                                                <td className="py-3 px-4 text-gray-600">{crop.row_spacing_cm} cm</td>
                                                 <td className="py-3 px-4 text-right">
                                                     <div className="flex justify-end gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                                                         <button
@@ -451,34 +440,7 @@ export default function AdminPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Width (Cells)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        value={cropForm.cells_width}
-                                        onChange={(e) => setCropForm({ ...cropForm, cells_width: parseInt(e.target.value) })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Height (Cells)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        value={cropForm.cells_height}
-                                        onChange={(e) => setCropForm({ ...cropForm, cells_height: parseInt(e.target.value) })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Spacing (cm)
+                                        In-row Spacing (cm)
                                     </label>
                                     <input
                                         type="number"
@@ -502,18 +464,6 @@ export default function AdminPage() {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Plants Per Cell
-                                </label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={cropForm.per_cell}
-                                    onChange={(e) => setCropForm({ ...cropForm, per_cell: parseInt(e.target.value) })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                                />
-                            </div>
 
                             {/* Timeline Section */}
                             <div className="border-t border-gray-200 pt-4 mt-4">

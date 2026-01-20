@@ -38,6 +38,7 @@ export default function BedsPage() {
     const [selectedPlacement, setSelectedPlacement] = useState<CropPlacement | null>(null)
     const [hoveredPlacement, setHoveredPlacement] = useState<CropPlacement | null>(null)
     const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null)
+    const [previewCell, setPreviewCell] = useState<{ x: number; y: number } | null>(null)
     const gridRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -91,6 +92,57 @@ export default function BedsPage() {
         return 25
     }
 
+    // Calculate the preview area for a given cell position
+    const getPreviewArea = (startX: number, startY: number) => {
+        if (!selectedCrop) return null
+
+        const spacingCm = customSpacing ?? selectedCrop.spacing_cm
+        const rowSpacingCm = customRowSpacing ?? selectedCrop.row_spacing_cm
+
+        const minWidthCells = Math.max(1, Math.ceil(spacingCm / 25))
+        const minHeightCells = Math.max(1, Math.ceil(rowSpacingCm / 25))
+
+        // Ensure we don't exceed grid bounds
+        const width = Math.min(minWidthCells, gridWidth - startX)
+        const height = Math.min(minHeightCells, gridHeight - startY)
+
+        // Check for collisions
+        let hasCollision = false
+        let outOfBounds = width < minWidthCells || height < minHeightCells
+
+        for (let x = startX; x < startX + width && !hasCollision; x++) {
+            for (let y = startY; y < startY + height && !hasCollision; y++) {
+                if (getPlacementAt(x, y)) {
+                    hasCollision = true
+                }
+            }
+        }
+
+        return {
+            startX,
+            startY,
+            width,
+            height,
+            isValid: !hasCollision && !outOfBounds,
+            requiredWidth: minWidthCells,
+            requiredHeight: minHeightCells
+        }
+    }
+
+    // Check if a cell is in the preview area
+    const isInPreviewArea = (x: number, y: number) => {
+        if (!previewCell || !selectedCrop || isDrawing) return null
+
+        const preview = getPreviewArea(previewCell.x, previewCell.y)
+        if (!preview) return null
+
+        if (x >= preview.startX && x < preview.startX + preview.width &&
+            y >= preview.startY && y < preview.startY + preview.height) {
+            return preview.isValid ? 'valid' : 'invalid'
+        }
+        return null
+    }
+
     const handleMouseDown = (e: React.MouseEvent, x: number, y: number) => {
         if (editMode !== 'crops' || !selectedCrop) return
         setIsDrawing(true)
@@ -111,16 +163,46 @@ export default function BedsPage() {
             return
         }
 
-        const minX = Math.min(drawStart.x, drawEnd.x)
-        const maxX = Math.max(drawStart.x, drawEnd.x)
-        const minY = Math.min(drawStart.y, drawEnd.y)
-        const maxY = Math.max(drawStart.y, drawEnd.y)
-        const width = maxX - minX + 1
-        const height = maxY - minY + 1
+        // Get effective spacing values
+        const spacingCm = customSpacing ?? selectedCrop.spacing_cm
+        const rowSpacingCm = customRowSpacing ?? selectedCrop.row_spacing_cm
 
-        // Check for collisions with existing placements
-        for (let x = minX; x <= maxX; x++) {
-            for (let y = minY; y <= maxY; y++) {
+        // Calculate minimum cells needed based on spacing (each cell is 25cm)
+        // We need at least enough space for the spacing requirements
+        const minWidthCells = Math.max(1, Math.ceil(spacingCm / 25))
+        const minHeightCells = Math.max(1, Math.ceil(rowSpacingCm / 25))
+
+        const drawnMinX = Math.min(drawStart.x, drawEnd.x)
+        const drawnMaxX = Math.max(drawStart.x, drawEnd.x)
+        const drawnMinY = Math.min(drawStart.y, drawEnd.y)
+        const drawnMaxY = Math.max(drawStart.y, drawEnd.y)
+        const drawnWidth = drawnMaxX - drawnMinX + 1
+        const drawnHeight = drawnMaxY - drawnMinY + 1
+
+        // Use the larger of drawn size or minimum required size
+        const width = Math.max(drawnWidth, minWidthCells)
+        const height = Math.max(drawnHeight, minHeightCells)
+
+        // Position starts at the drawn minimum, but we need to check bounds
+        const minX = drawnMinX
+        const minY = drawnMinY
+
+        // Ensure we don't exceed grid bounds
+        const finalWidth = Math.min(width, gridWidth - minX)
+        const finalHeight = Math.min(height, gridHeight - minY)
+
+        // Check if area goes out of bounds (required size doesn't fit)
+        if (finalWidth < minWidthCells || finalHeight < minHeightCells) {
+            // Out of bounds - can't place here
+            setIsDrawing(false)
+            setDrawStart(null)
+            setDrawEnd(null)
+            return
+        }
+
+        // Check for collisions with existing placements in the expanded area
+        for (let x = minX; x < minX + finalWidth; x++) {
+            for (let y = minY; y < minY + finalHeight; y++) {
                 if (getPlacementAt(x, y)) {
                     // Collision detected
                     setIsDrawing(false)
@@ -137,8 +219,8 @@ export default function BedsPage() {
                 crop_id: selectedCrop.id,
                 position_x: minX,
                 position_y: minY,
-                width_cells: width,
-                height_cells: height,
+                width_cells: finalWidth,
+                height_cells: finalHeight,
                 custom_spacing_cm: customSpacing ?? undefined,
                 custom_row_spacing_cm: customRowSpacing ?? undefined,
             })
@@ -160,12 +242,29 @@ export default function BedsPage() {
     }
 
     const isInDrawArea = (x: number, y: number) => {
-        if (!drawStart || !drawEnd) return false
-        const minX = Math.min(drawStart.x, drawEnd.x)
-        const maxX = Math.max(drawStart.x, drawEnd.x)
-        const minY = Math.min(drawStart.y, drawEnd.y)
-        const maxY = Math.max(drawStart.y, drawEnd.y)
-        return x >= minX && x <= maxX && y >= minY && y <= maxY
+        if (!drawStart || !drawEnd || !selectedCrop) return false
+
+        // Get effective spacing values
+        const spacingCm = customSpacing ?? selectedCrop.spacing_cm
+        const rowSpacingCm = customRowSpacing ?? selectedCrop.row_spacing_cm
+
+        // Calculate minimum cells needed based on spacing
+        const minWidthCells = Math.max(1, Math.ceil(spacingCm / 25))
+        const minHeightCells = Math.max(1, Math.ceil(rowSpacingCm / 25))
+
+        const drawnMinX = Math.min(drawStart.x, drawEnd.x)
+        const drawnMaxX = Math.max(drawStart.x, drawEnd.x)
+        const drawnMinY = Math.min(drawStart.y, drawEnd.y)
+        const drawnMaxY = Math.max(drawStart.y, drawEnd.y)
+        const drawnWidth = drawnMaxX - drawnMinX + 1
+        const drawnHeight = drawnMaxY - drawnMinY + 1
+
+        // Use the larger of drawn size or minimum required size
+        const width = Math.max(drawnWidth, minWidthCells)
+        const height = Math.max(drawnHeight, minHeightCells)
+
+        // Check if cell is within the expanded area
+        return x >= drawnMinX && x < drawnMinX + width && y >= drawnMinY && y < drawnMinY + height
     }
 
     // Memoize placement lookup - rebuilds whenever placements array changes
@@ -190,8 +289,12 @@ export default function BedsPage() {
         const rowSpacingCm = placement.custom_row_spacing_cm ?? placement.crop.row_spacing_cm
         const widthCm = placement.width_cells * 25
         const heightCm = placement.height_cells * 25
-        const plantsInRow = Math.max(1, Math.floor(widthCm / spacingCm) + 1)
-        const rows = Math.max(1, Math.floor(heightCm / rowSpacingCm) + 1)
+
+        // Calculate how many plants fit: we get 1 plant, plus 1 more for each additional spacing that fits
+        // Example: 100cm width with 100cm spacing = 1 plant (floor(100/100) = 1)
+        // Example: 200cm width with 100cm spacing = 2 plants (floor(200/100) = 2)
+        const plantsInRow = Math.max(1, Math.floor(widthCm / spacingCm))
+        const rows = Math.max(1, Math.floor(heightCm / rowSpacingCm))
         return plantsInRow * rows
     }
 
@@ -312,6 +415,7 @@ export default function BedsPage() {
                                         const placement = getPlacementAt(x, y)
                                         const isDrawSelection = isInDrawArea(x, y) && isDrawing
                                         const isPlacementOrigin = placement && placement.position_x === x && placement.position_y === y
+                                        const previewStatus = isInPreviewArea(x, y)
 
                                         // Determine if this cell is on a 1-meter boundary (every 4 cells = 100cm)
                                         const isRightMeterLine = (x + 1) % 4 === 0
@@ -319,15 +423,25 @@ export default function BedsPage() {
                                         const isLeftMeterLine = x % 4 === 0
                                         const isTopMeterLine = y % 4 === 0
 
+                                        // Determine background color
+                                        let bgColor = undefined
+                                        if (placement) {
+                                            bgColor = `${getCropColor(placement.crop_id)}30`
+                                        } else if (previewStatus === 'valid') {
+                                            bgColor = 'rgba(34, 197, 94, 0.3)' // green
+                                        } else if (previewStatus === 'invalid') {
+                                            bgColor = 'rgba(239, 68, 68, 0.3)' // red
+                                        }
+
                                         return (
                                             <div
                                                 key={`${x}-${y}-${placement?.id ?? 'empty'}`}
                                                 className={`flex items-center justify-center text-lg transition-colors relative group ${editMode === 'crops' && selectedCrop && !placement
-                                                    ? 'cursor-crosshair hover:bg-primary-50'
+                                                    ? 'cursor-crosshair'
                                                     : placement && editMode === 'crops' ? 'cursor-pointer' : ''
                                                     } ${isDrawSelection && selectedCrop ? 'ring-2 ring-primary-400 ring-inset' : ''}`}
                                                 style={{
-                                                    backgroundColor: placement ? `${getCropColor(placement.crop_id)}30` : undefined,
+                                                    backgroundColor: bgColor,
                                                     borderTop: isTopMeterLine ? '1px solid #9ca3af' : '1px solid #e5e7eb',
                                                     borderLeft: isLeftMeterLine ? '1px solid #9ca3af' : '1px solid #e5e7eb',
                                                     borderRight: isRightMeterLine ? '1px solid #9ca3af' : '1px solid #e5e7eb',
@@ -344,12 +458,17 @@ export default function BedsPage() {
                                                     if (placement) {
                                                         setHoveredPlacement(placement)
                                                         setHoveredCell({ x, y })
+                                                    } else if (editMode === 'crops' && selectedCrop && !isDrawing) {
+                                                        setPreviewCell({ x, y })
                                                     }
                                                     handleMouseEnter(x, y)
                                                 }}
                                                 onMouseLeave={() => {
                                                     setHoveredPlacement(null)
                                                     setHoveredCell(null)
+                                                    if (!isDrawing) {
+                                                        setPreviewCell(null)
+                                                    }
                                                 }}
                                                 onMouseUp={handleMouseUp}
                                                 onClick={(e) => {
