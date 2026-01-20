@@ -145,6 +145,17 @@ export default function BedsPage() {
 
     const handleMouseDown = (e: React.MouseEvent, x: number, y: number) => {
         if (editMode !== 'crops' || !selectedCrop) return
+
+        // Right click to rotate
+        if (e.button === 2) {
+            e.preventDefault()
+            const currentSpacing = customSpacing ?? selectedCrop.spacing_cm
+            const currentRowSpacing = customRowSpacing ?? selectedCrop.row_spacing_cm
+            setCustomSpacing(currentRowSpacing)
+            setCustomRowSpacing(currentSpacing)
+            return
+        }
+
         setIsDrawing(true)
         setDrawStart({ x, y })
         setDrawEnd({ x, y })
@@ -393,6 +404,7 @@ export default function BedsPage() {
                             <div className="py-4 px-2">
                                 <div
                                     ref={gridRef}
+                                    onContextMenu={(e) => e.preventDefault()}
                                     className="mx-auto border border-gray-200 rounded-lg select-none"
                                     style={{
                                         width: gridWidth * cellSize,
