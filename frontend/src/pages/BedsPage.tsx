@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useGardenStore, type Bed } from '../store/gardenStore'
 import { useCropStore, type Crop, type CropPlacement } from '../store/cropStore'
-import { Loader2, Plus, Edit, Eye, Trash2, Settings } from 'lucide-react'
+import { Loader2, Plus, Edit, Eye, Trash2, Settings, RotateCw } from 'lucide-react'
 
 // Color palette for crops
 const CROP_COLORS = [
@@ -629,6 +629,21 @@ export default function BedsPage() {
                                         <span className="text-sm text-gray-500">cm</span>
                                     </div>
                                 </div>
+
+                                {/* Rotate Button */}
+                                <button
+                                    onClick={() => {
+                                        const currentSpacing = customSpacing ?? selectedCrop.spacing_cm
+                                        const currentRowSpacing = customRowSpacing ?? selectedCrop.row_spacing_cm
+                                        setCustomSpacing(currentRowSpacing)
+                                        setCustomRowSpacing(currentSpacing)
+                                    }}
+                                    className="w-full flex items-center justify-center gap-2 text-sm text-gray-700 hover:text-primary-700 bg-white border border-gray-200 hover:border-primary-300 hover:bg-primary-50 px-3 py-1.5 rounded-lg transition-colors mb-2"
+                                    title="Swap spacing values"
+                                >
+                                    <RotateCw className="w-3.5 h-3.5" />
+                                    <span>Rotate Spacing</span>
+                                </button>
 
                                 {(customSpacing !== null || customRowSpacing !== null) && (
                                     <button
