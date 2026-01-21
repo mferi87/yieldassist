@@ -503,65 +503,6 @@ export default function BedsPage() {
                                                     }
                                                 }}
                                             >
-                                                {/* Show emoji for each cell in placement if it corresponds to a plant location */}
-                                                {placement && (() => {
-                                                    // Determine if we should render an icon in this cell
-                                                    const relX = x - placement.position_x
-                                                    const relY = y - placement.position_y
-
-                                                    const spacing = placement.custom_spacing_cm ?? placement.crop.spacing_cm
-                                                    const rowSpacing = placement.custom_row_spacing_cm ?? placement.crop.row_spacing_cm
-
-                                                    // Max number of plants that fit in the placement
-                                                    const widthCm = placement.width_cells * 25
-                                                    const heightCm = placement.height_cells * 25
-                                                    const maxPlantsX = Math.max(1, Math.floor(widthCm / spacing))
-                                                    const maxPlantsY = Math.max(1, Math.floor(heightCm / rowSpacing))
-
-                                                    // Helper to check if a plant center falls in a cell
-                                                    const checkPlantInCell = (
-                                                        relPos: number,
-                                                        maxPlants: number,
-                                                        spacingValue: number,
-                                                        areaDimension: number
-                                                    ): boolean => {
-                                                        const cellStart = relPos * 25
-                                                        const cellEnd = (relPos + 1) * 25
-
-                                                        // If only 1 plant and spacing >= area, center it
-                                                        if (maxPlants === 1 && spacingValue >= areaDimension) {
-                                                            const plantCenter = areaDimension / 2
-                                                            return plantCenter >= cellStart && plantCenter < cellEnd
-                                                        }
-
-                                                        // Otherwise use standard spacing formula
-                                                        // Plant i center is at: i * spacing + spacing/2
-                                                        for (let i = 0; i < maxPlants; i++) {
-                                                            const plantCenter = i * spacingValue + spacingValue / 2
-                                                            if (plantCenter >= cellStart && plantCenter < cellEnd) {
-                                                                return true
-                                                            }
-                                                        }
-                                                        return false
-                                                    }
-
-                                                    const hasPlantX = checkPlantInCell(relX, maxPlantsX, spacing, widthCm)
-                                                    const hasPlantY = checkPlantInCell(relY, maxPlantsY, rowSpacing, heightCm)
-
-                                                    if (hasPlantX && hasPlantY) {
-                                                        const emoji = getCropEmoji(placement.crop)
-                                                        return (
-                                                            <div className="flex items-center justify-center w-full h-full select-none">
-                                                                {isBase64Image(emoji) ? (
-                                                                    <img src={emoji} alt={placement.crop.name} className="w-5 h-5 object-contain" />
-                                                                ) : (
-                                                                    <span className="text-xl leading-none">{emoji}</span>
-                                                                )}
-                                                            </div>
-                                                        )
-                                                    }
-                                                    return null
-                                                })()}
 
                                                 {/* Hover tooltip - show only on the exact cell being hovered */}
                                                 {placement && hoveredCell?.x === x && hoveredCell?.y === y && (
@@ -573,19 +514,76 @@ export default function BedsPage() {
                                                     </div>
                                                 )}
 
-                                                {/* Placement border overlay on origin cell */}
-                                                {isPlacementOrigin && (
-                                                    <div
-                                                        className="absolute inset-0 pointer-events-none"
-                                                        style={{
-                                                            width: placement.width_cells * cellSize,
-                                                            height: placement.height_cells * cellSize,
-                                                            border: `2px solid ${getCropColor(placement.crop_id)}`,
-                                                            borderRadius: '4px',
-                                                            zIndex: 10,
-                                                        }}
-                                                    />
-                                                )}
+                                                {/* Placement border overlay and pixel-precise plant icons on origin cell */}
+                                                {isPlacementOrigin && (() => {
+                                                    const spacing = placement.custom_spacing_cm ?? placement.crop.spacing_cm
+                                                    const rowSpacing = placement.custom_row_spacing_cm ?? placement.crop.row_spacing_cm
+                                                    const widthCm = placement.width_cells * 25
+                                                    const heightCm = placement.height_cells * 25
+
+                                                    // Calculate number of plants in each dimension
+                                                    const plantsX = Math.max(1, Math.floor(widthCm / spacing))
+                                                    const plantsY = Math.max(1, Math.floor(heightCm / rowSpacing))
+
+                                                    // Limit rendered icons to max 1 per cell (25cm) to avoid stacking
+                                                    const maxIconsX = placement.width_cells
+                                                    const maxIconsY = placement.height_cells
+                                                    const iconsX = Math.min(plantsX, maxIconsX)
+                                                    const iconsY = Math.min(plantsY, maxIconsY)
+
+                                                    // Calculate spacing for rendered icons (distribute evenly across area)
+                                                    const iconSpacingX = widthCm / iconsX
+                                                    const iconSpacingY = heightCm / iconsY
+
+                                                    // Generate icon positions (capped for rendering, not actual plant count)
+                                                    const plants: { x: number; y: number }[] = []
+
+                                                    for (let row = 0; row < iconsY; row++) {
+                                                        for (let col = 0; col < iconsX; col++) {
+                                                            // Center each icon in its spacing zone
+                                                            const xCm = col * iconSpacingX + iconSpacingX / 2
+                                                            const yCm = row * iconSpacingY + iconSpacingY / 2
+
+                                                            plants.push({ x: xCm, y: yCm })
+                                                        }
+                                                    }
+
+                                                    const emoji = getCropEmoji(placement.crop)
+
+                                                    return (
+                                                        <div
+                                                            className="absolute inset-0 pointer-events-none"
+                                                            style={{
+                                                                width: placement.width_cells * cellSize,
+                                                                height: placement.height_cells * cellSize,
+                                                                border: `2px solid ${getCropColor(placement.crop_id)}`,
+                                                                borderRadius: '4px',
+                                                                zIndex: 10,
+                                                            }}
+                                                        >
+                                                            {/* Render each plant icon at pixel-precise position */}
+                                                            {plants.map((pos, idx) => (
+                                                                <div
+                                                                    key={idx}
+                                                                    className="absolute flex items-center justify-center select-none"
+                                                                    style={{
+                                                                        left: pos.x,
+                                                                        top: pos.y,
+                                                                        transform: 'translate(-50%, -50%)',
+                                                                        width: 20,
+                                                                        height: 20,
+                                                                    }}
+                                                                >
+                                                                    {isBase64Image(emoji) ? (
+                                                                        <img src={emoji} alt={placement.crop.name} className="w-5 h-5 object-contain" />
+                                                                    ) : (
+                                                                        <span className="text-xl leading-none">{emoji}</span>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )
+                                                })()}
                                             </div>
                                         )
                                     })}
