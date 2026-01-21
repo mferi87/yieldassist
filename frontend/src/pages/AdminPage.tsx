@@ -40,6 +40,9 @@ export default function AdminPage() {
     const [editingCrop, setEditingCrop] = useState<Crop | null>(null)
     const [cropForm, setCropForm] = useState<Partial<Crop>>({
         name: '',
+        cells_width: 1,
+        cells_height: 1,
+        per_cell: 1,
         spacing_cm: 25,
         row_spacing_cm: 25,
     })
@@ -73,6 +76,9 @@ export default function AdminPage() {
             setEditingCrop(null)
             setCropForm({
                 name: '',
+                cells_width: 1,
+                cells_height: 1,
+                per_cell: 1,
                 spacing_cm: 25,
                 row_spacing_cm: 25,
                 is_public: true,
@@ -90,6 +96,9 @@ export default function AdminPage() {
             } else {
                 const newCropData = {
                     name: cropForm.name || 'New Crop',
+                    cells_width: cropForm.cells_width || 1,
+                    cells_height: cropForm.cells_height || 1,
+                    per_cell: cropForm.per_cell || 1,
                     spacing_cm: cropForm.spacing_cm || 25,
                     row_spacing_cm: cropForm.row_spacing_cm || 25,
                     is_public: cropForm.is_public,

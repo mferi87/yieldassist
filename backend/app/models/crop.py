@@ -20,6 +20,9 @@ class Crop(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)
     icon = Column(String, nullable=True) # Emoji or Base64 encoded image
+    cells_width = Column(Integer, nullable=False, default=1)  # Default cells width for placement
+    cells_height = Column(Integer, nullable=False, default=1)  # Default cells height for placement
+    per_cell = Column(Integer, nullable=False, default=1)  # Number of plants per cell
     spacing_cm = Column(Integer, nullable=False, default=25)  # In-row spacing (between plants)
     row_spacing_cm = Column(Integer, nullable=False, default=25)  # Between-row spacing
     care_schedule = Column(JSON, default=dict)  # Planting, care, harvest info

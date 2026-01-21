@@ -8,6 +8,9 @@ from app.models.crop import CropStatus
 class CropBase(BaseModel):
     name: str
     icon: Optional[str] = None
+    cells_width: int = 1  # Default cells width for placement
+    cells_height: int = 1  # Default cells height for placement
+    per_cell: int = 1  # Number of plants per cell
     spacing_cm: int = 25  # In-row spacing (between plants)
     row_spacing_cm: int = 25  # Between-row spacing
     care_schedule: Dict[str, Any] = {}
@@ -28,6 +31,9 @@ class CropCreate(CropBase):
 class CropUpdate(BaseModel):
     name: Optional[str] = None
     icon: Optional[str] = None
+    cells_width: Optional[int] = None
+    cells_height: Optional[int] = None
+    per_cell: Optional[int] = None
     spacing_cm: Optional[int] = None
     row_spacing_cm: Optional[int] = None
     care_schedule: Optional[Dict[str, Any]] = None

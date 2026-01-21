@@ -11,6 +11,9 @@ SEED_CROPS = [
         "name": "Tomato",
         "spacing_cm": 50,
         "row_spacing_cm": 80,
+        "cells_width": 2,
+        "cells_height": 2,
+        "per_cell": 1,
         "care_schedule": {
             "plant_month": 3,
             "harvest_months": [7, 8, 9],
@@ -25,6 +28,9 @@ SEED_CROPS = [
         "name": "Lettuce",
         "spacing_cm": 20,
         "row_spacing_cm": 30,
+        "cells_width": 1,
+        "cells_height": 1,
+        "per_cell": 4,
         "care_schedule": {
             "plant_month": 3,
             "harvest_months": [5, 6],
@@ -39,6 +45,9 @@ SEED_CROPS = [
         "name": "Carrot",
         "spacing_cm": 5,
         "row_spacing_cm": 20,
+        "cells_width": 1,
+        "cells_height": 1,
+        "per_cell": 16,
         "care_schedule": {
             "plant_month": 4,
             "harvest_months": [7, 8],
@@ -53,6 +62,9 @@ SEED_CROPS = [
         "name": "Bell Pepper",
         "spacing_cm": 45,
         "row_spacing_cm": 60,
+        "cells_width": 1,
+        "cells_height": 1,
+        "per_cell": 1,
         "care_schedule": {
             "plant_month": 4,
             "harvest_months": [7, 8, 9],
@@ -67,6 +79,9 @@ SEED_CROPS = [
         "name": "Cucumber",
         "spacing_cm": 40,
         "row_spacing_cm": 100,
+        "cells_width": 1,
+        "cells_height": 1,
+        "per_cell": 1,
         "care_schedule": {
             "plant_month": 5,
             "harvest_months": [7, 8],
@@ -81,6 +96,9 @@ SEED_CROPS = [
         "name": "Zucchini",
         "spacing_cm": 60,
         "row_spacing_cm": 100,
+        "cells_width": 2,
+        "cells_height": 2,
+        "per_cell": 1,
         "care_schedule": {
             "plant_month": 5,
             "harvest_months": [7, 8, 9],
@@ -95,6 +113,9 @@ SEED_CROPS = [
         "name": "Pumpkin",
         "spacing_cm": 100,
         "row_spacing_cm": 200,
+        "cells_width": 3,
+        "cells_height": 3,
+        "per_cell": 1,
         "care_schedule": {
             "plant_month": 5,
             "harvest_months": [9, 10],
@@ -109,6 +130,9 @@ SEED_CROPS = [
         "name": "Radish",
         "spacing_cm": 5,
         "row_spacing_cm": 15,
+        "cells_width": 1,
+        "cells_height": 1,
+        "per_cell": 16,
         "care_schedule": {
             "plant_month": 3,
             "harvest_months": [4, 5],
@@ -123,6 +147,9 @@ SEED_CROPS = [
         "name": "Spinach",
         "spacing_cm": 10,
         "row_spacing_cm": 30,
+        "cells_width": 1,
+        "cells_height": 1,
+        "per_cell": 9,
         "care_schedule": {
             "plant_month": 3,
             "harvest_months": [5, 6],
@@ -137,6 +164,9 @@ SEED_CROPS = [
         "name": "Green Bean",
         "spacing_cm": 10,
         "row_spacing_cm": 45,
+        "cells_width": 1,
+        "cells_height": 1,
+        "per_cell": 9,
         "care_schedule": {
             "plant_month": 5,
             "harvest_months": [7, 8],
@@ -151,6 +181,9 @@ SEED_CROPS = [
         "name": "Onion",
         "spacing_cm": 10,
         "row_spacing_cm": 25,
+        "cells_width": 1,
+        "cells_height": 1,
+        "per_cell": 9,
         "care_schedule": {
             "plant_month": 3,
             "harvest_months": [7, 8],
@@ -165,6 +198,9 @@ SEED_CROPS = [
         "name": "Garlic",
         "spacing_cm": 10,
         "row_spacing_cm": 25,
+        "cells_width": 1,
+        "cells_height": 1,
+        "per_cell": 9,
         "care_schedule": {
             "plant_month": 10,
             "harvest_months": [6, 7],
@@ -179,6 +215,9 @@ SEED_CROPS = [
         "name": "Broccoli",
         "spacing_cm": 45,
         "row_spacing_cm": 60,
+        "cells_width": 2,
+        "cells_height": 2,
+        "per_cell": 1,
         "care_schedule": {
             "plant_month": 4,
             "harvest_months": [6, 7],
@@ -193,6 +232,9 @@ SEED_CROPS = [
         "name": "Cabbage",
         "spacing_cm": 45,
         "row_spacing_cm": 60,
+        "cells_width": 2,
+        "cells_height": 2,
+        "per_cell": 1,
         "care_schedule": {
             "plant_month": 4,
             "harvest_months": [7, 8],
@@ -207,6 +249,9 @@ SEED_CROPS = [
         "name": "Eggplant",
         "spacing_cm": 50,
         "row_spacing_cm": 75,
+        "cells_width": 2,
+        "cells_height": 2,
+        "per_cell": 1,
         "care_schedule": {
             "plant_month": 5,
             "harvest_months": [8, 9],
