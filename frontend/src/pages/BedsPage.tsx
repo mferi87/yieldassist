@@ -773,17 +773,115 @@ export default function BedsPage() {
                         className="bg-white rounded-2xl shadow-xl p-6 w-80 max-w-[90vw]"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex items-center gap-3 mb-4">
-                            <span className="text-3xl">{getCropEmoji(selectedPlacement.crop.name)}</span>
-                            <div>
-                                <h3 className="font-semibold text-gray-900">{selectedPlacement.crop.name}</h3>
-                                <p className="text-sm text-gray-500">
-                                    {calculatePlantCount(selectedPlacement)} plants • {selectedPlacement.width_cells}×{selectedPlacement.height_cells} cells
-                                </p>
-                            </div>
-                        </div>
+                        {(() => {
+                            const widthCm = selectedPlacement.width_cells * 25
+                            const heightCm = selectedPlacement.height_cells * 25
+                            const spacing = parseInt(editSpacing) || selectedPlacement.crop.spacing_cm
+                            const rowSpacing = parseInt(editRowSpacing) || selectedPlacement.crop.row_spacing_cm
+                            const totalPlants = Math.max(1, Math.floor(widthCm / spacing)) * Math.max(1, Math.floor(heightCm / rowSpacing))
+                            return (
+                                <div className="flex items-center gap-3 mb-4">
+                                    <span className="text-3xl">{getCropEmoji(selectedPlacement.crop.name)}</span>
+                                    <div className="flex items-baseline gap-2">
+                                        <h3 className="font-semibold text-gray-900">{selectedPlacement.crop.name}</h3>
+                                        <span className="text-2xl font-bold text-primary-600">{totalPlants}</span>
+                                    </div>
+                                </div>
+                            )
+                        })()}
 
                         <div className="space-y-4 mb-6">
+                            {/* Plant Count Adjustment - Rows and Plants per Row */}
+                            <div>
+                                {(() => {
+                                    const widthCm = selectedPlacement.width_cells * 25
+                                    const heightCm = selectedPlacement.height_cells * 25
+                                    const spacing = parseInt(editSpacing) || selectedPlacement.crop.spacing_cm
+                                    const rowSpacing = parseInt(editRowSpacing) || selectedPlacement.crop.row_spacing_cm
+                                    const plantsX = Math.max(1, Math.floor(widthCm / spacing))
+                                    const plantsY = Math.max(1, Math.floor(heightCm / rowSpacing))
+
+                                    const adjustPlantsPerRow = (delta: number) => {
+                                        const newPlantsX = Math.max(1, plantsX + delta)
+                                        const newSpacing = Math.max(1, Math.floor(widthCm / newPlantsX))
+
+                                        setEditSpacing(String(newSpacing))
+                                        const newPlacement = {
+                                            ...selectedPlacement,
+                                            custom_spacing_cm: newSpacing
+                                        }
+                                        setSelectedPlacement(newPlacement)
+                                        updatePlacement(selectedPlacement.id, { custom_spacing_cm: newSpacing })
+                                    }
+
+                                    const adjustRows = (delta: number) => {
+                                        const newPlantsY = Math.max(1, plantsY + delta)
+                                        const newRowSpacing = Math.max(1, Math.floor(heightCm / newPlantsY))
+
+                                        setEditRowSpacing(String(newRowSpacing))
+                                        const newPlacement = {
+                                            ...selectedPlacement,
+                                            custom_row_spacing_cm: newRowSpacing
+                                        }
+                                        setSelectedPlacement(newPlacement)
+                                        updatePlacement(selectedPlacement.id, { custom_row_spacing_cm: newRowSpacing })
+                                    }
+
+                                    return (
+                                        <div className="space-y-3">
+
+                                            {/* Plants per row control */}
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm text-gray-600">Plants per row</span>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => adjustPlantsPerRow(-1)}
+                                                        disabled={plantsX <= 1}
+                                                        className={`w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold transition-colors ${plantsX <= 1
+                                                            ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                                                            : 'bg-gray-100 text-gray-600 hover:bg-primary-100 hover:text-primary-600'
+                                                            }`}
+                                                    >
+                                                        −
+                                                    </button>
+                                                    <span className="w-8 text-center font-semibold text-gray-900">{plantsX}</span>
+                                                    <button
+                                                        onClick={() => adjustPlantsPerRow(1)}
+                                                        className="w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold bg-gray-100 text-gray-600 hover:bg-primary-100 hover:text-primary-600 transition-colors"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Number of rows control */}
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm text-gray-600">Number of rows</span>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => adjustRows(-1)}
+                                                        disabled={plantsY <= 1}
+                                                        className={`w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold transition-colors ${plantsY <= 1
+                                                            ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                                                            : 'bg-gray-100 text-gray-600 hover:bg-primary-100 hover:text-primary-600'
+                                                            }`}
+                                                    >
+                                                        −
+                                                    </button>
+                                                    <span className="w-8 text-center font-semibold text-gray-900">{plantsY}</span>
+                                                    <button
+                                                        onClick={() => adjustRows(1)}
+                                                        className="w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold bg-gray-100 text-gray-600 hover:bg-primary-100 hover:text-primary-600 transition-colors"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                })()}
+                            </div>
+
                             <div>
                                 <label className="block text-xs text-gray-500 mb-2">Plant Spacing</label>
                                 <div className="flex items-center gap-2">
@@ -884,29 +982,6 @@ export default function BedsPage() {
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* Warning message when rotation is blocked */}
-                                {(() => {
-                                    const widthCm = selectedPlacement.width_cells * 25
-                                    const heightCm = selectedPlacement.height_cells * 25
-                                    const spacingVal = parseInt(editSpacing)
-                                    const rowSpacingVal = parseInt(editRowSpacing)
-
-                                    const wouldFitX = !isNaN(rowSpacingVal) && widthCm >= rowSpacingVal
-                                    const wouldFitY = !isNaN(spacingVal) && heightCm >= spacingVal
-                                    const canRotate = wouldFitX && wouldFitY
-
-                                    if (!canRotate) {
-                                        return (
-                                            <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                                                <p className="text-xs text-amber-700">
-                                                    ⚠️ Cannot rotate: spacing values won't fit in {widthCm}×{heightCm}cm area
-                                                </p>
-                                            </div>
-                                        )
-                                    }
-                                    return null
-                                })()}
                             </div>
                         </div>
 
