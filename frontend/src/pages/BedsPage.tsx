@@ -26,16 +26,21 @@ export default function BedsPage() {
     const { gardenId } = useParams()
     const [searchParams] = useSearchParams()
     const { currentGarden, beds, fetchGarden, fetchBeds, isLoading } = useGardenStore()
-    const { crops, placements, fetchCrops, fetchPlacements, createPlacement, deletePlacement } = useCropStore()
+    const { crops, placements, fetchCrops, fetchPlacements, createPlacement, deletePlacement, updatePlacement } = useCropStore()
     const [selectedBed, setSelectedBed] = useState<Bed | null>(null)
     const [editMode, setEditMode] = useState<'view' | 'crops' | 'zones'>('view')
     const [selectedCrop, setSelectedCrop] = useState<Crop | null>(null)
+    const [selectedPlacement, setSelectedPlacement] = useState<CropPlacement | null>(null)
+
+    // Local state for editing spacing in popup
+    const [editSpacing, setEditSpacing] = useState<string>('')
+    const [editRowSpacing, setEditRowSpacing] = useState<string>('')
+
     const [customSpacing, setCustomSpacing] = useState<number | null>(null)
     const [customRowSpacing, setCustomRowSpacing] = useState<number | null>(null)
     const [isDrawing, setIsDrawing] = useState(false)
     const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null)
     const [drawEnd, setDrawEnd] = useState<{ x: number; y: number } | null>(null)
-    const [selectedPlacement, setSelectedPlacement] = useState<CropPlacement | null>(null)
     const [hoveredPlacement, setHoveredPlacement] = useState<CropPlacement | null>(null)
     const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null)
     const [previewCell, setPreviewCell] = useState<{ x: number; y: number } | null>(null)
@@ -74,6 +79,14 @@ export default function BedsPage() {
             fetchPlacements(selectedBed.id)
         }
     }, [selectedBed, fetchPlacements])
+
+    // Sync editing state when selectedPlacement changes
+    useEffect(() => {
+        if (selectedPlacement) {
+            setEditSpacing(String(selectedPlacement.custom_spacing_cm ?? selectedPlacement.crop.spacing_cm))
+            setEditRowSpacing(String(selectedPlacement.custom_row_spacing_cm ?? selectedPlacement.crop.row_spacing_cm))
+        }
+    }, [selectedPlacement])
 
     useEffect(() => {
         if (selectedCrop) {
@@ -493,7 +506,6 @@ export default function BedsPage() {
                                                 {/* Show emoji for each cell in placement if it corresponds to a plant location */}
                                                 {placement && (() => {
                                                     // Determine if we should render an icon in this cell
-                                                    // Logic: Check if any plant center falls within this cell's area
                                                     const relX = x - placement.position_x
                                                     const relY = y - placement.position_y
 
@@ -506,26 +518,35 @@ export default function BedsPage() {
                                                     const maxPlantsX = Math.max(1, Math.floor(widthCm / spacing))
                                                     const maxPlantsY = Math.max(1, Math.floor(heightCm / rowSpacing))
 
-                                                    // Check X axis: does a plant center fall in this cell?
-                                                    // Plant i center is at: i * spacing + spacing/2
-                                                    // Cell covers range: [relX * 25, (relX + 1) * 25)
-                                                    // We need integer i such that:
-                                                    // relX * 25 <= i * spacing + spacing/2 < (relX + 1) * 25
-                                                    // (relX * 25)/spacing - 0.5 <= i < ((relX + 1) * 25)/spacing - 0.5
+                                                    // Helper to check if a plant center falls in a cell
+                                                    const checkPlantInCell = (
+                                                        relPos: number,
+                                                        maxPlants: number,
+                                                        spacingValue: number,
+                                                        areaDimension: number
+                                                    ): boolean => {
+                                                        const cellStart = relPos * 25
+                                                        const cellEnd = (relPos + 1) * 25
 
-                                                    const lowerX = (relX * 25) / spacing - 0.5
-                                                    const upperX = ((relX + 1) * 25) / spacing - 0.5
-                                                    const firstPlantIndexX = Math.ceil(lowerX)
+                                                        // If only 1 plant and spacing >= area, center it
+                                                        if (maxPlants === 1 && spacingValue >= areaDimension) {
+                                                            const plantCenter = areaDimension / 2
+                                                            return plantCenter >= cellStart && plantCenter < cellEnd
+                                                        }
 
-                                                    // Check if valid plant index exists in this cell range
-                                                    const hasPlantX = firstPlantIndexX < upperX && firstPlantIndexX >= 0 && firstPlantIndexX < maxPlantsX
+                                                        // Otherwise use standard spacing formula
+                                                        // Plant i center is at: i * spacing + spacing/2
+                                                        for (let i = 0; i < maxPlants; i++) {
+                                                            const plantCenter = i * spacingValue + spacingValue / 2
+                                                            if (plantCenter >= cellStart && plantCenter < cellEnd) {
+                                                                return true
+                                                            }
+                                                        }
+                                                        return false
+                                                    }
 
-                                                    // Check Y axis
-                                                    const lowerY = (relY * 25) / rowSpacing - 0.5
-                                                    const upperY = ((relY + 1) * 25) / rowSpacing - 0.5
-                                                    const firstPlantIndexY = Math.ceil(lowerY)
-
-                                                    const hasPlantY = firstPlantIndexY < upperY && firstPlantIndexY >= 0 && firstPlantIndexY < maxPlantsY
+                                                    const hasPlantX = checkPlantInCell(relX, maxPlantsX, spacing, widthCm)
+                                                    const hasPlantY = checkPlantInCell(relY, maxPlantsY, rowSpacing, heightCm)
 
                                                     if (hasPlantX && hasPlantY) {
                                                         const emoji = getCropEmoji(placement.crop)
@@ -766,28 +787,128 @@ export default function BedsPage() {
 
                         <div className="space-y-4 mb-6">
                             <div>
-                                <label className="block text-xs text-gray-500 mb-1">In-row spacing (between plants)</label>
+                                <label className="block text-xs text-gray-500 mb-2">Plant Spacing</label>
                                 <div className="flex items-center gap-2">
-                                    <input
-                                        type="number"
-                                        value={selectedPlacement.custom_spacing_cm ?? selectedPlacement.crop.spacing_cm}
-                                        className="w-20 px-2 py-1 border border-gray-200 rounded text-sm"
-                                        readOnly
-                                    />
-                                    <span className="text-sm text-gray-500">cm</span>
+                                    {/* In-row spacing */}
+                                    <div className="flex-1">
+                                        <label className="block text-xs text-gray-400 mb-1">In-row</label>
+                                        <div className="flex items-center gap-1">
+                                            <input
+                                                type="number"
+                                                value={editSpacing}
+                                                onChange={(e) => {
+                                                    const valStr = e.target.value
+                                                    setEditSpacing(valStr)
+                                                    const val = parseInt(valStr)
+                                                    if (!isNaN(val) && val > 0) {
+                                                        const newPlacement = { ...selectedPlacement, custom_spacing_cm: val }
+                                                        setSelectedPlacement(newPlacement)
+                                                        updatePlacement(selectedPlacement.id, { custom_spacing_cm: val })
+                                                    }
+                                                }}
+                                                className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                                                min={1}
+                                            />
+                                            <span className="text-xs text-gray-500">cm</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Rotate button */}
+                                    {(() => {
+                                        // Check if rotation would fit in the area
+                                        const widthCm = selectedPlacement.width_cells * 25
+                                        const heightCm = selectedPlacement.height_cells * 25
+                                        const spacingVal = parseInt(editSpacing)
+                                        const rowSpacingVal = parseInt(editRowSpacing)
+
+                                        // After rotation: in-row becomes rowSpacing, between-rows becomes spacing
+                                        // Check if at least 1 plant would fit in each dimension
+                                        const wouldFitX = !isNaN(rowSpacingVal) && widthCm >= rowSpacingVal
+                                        const wouldFitY = !isNaN(spacingVal) && heightCm >= spacingVal
+                                        const canRotate = wouldFitX && wouldFitY
+
+                                        return (
+                                            <button
+                                                onClick={() => {
+                                                    const temp = editSpacing
+                                                    setEditSpacing(editRowSpacing)
+                                                    setEditRowSpacing(temp)
+
+                                                    const spacingVal = parseInt(editRowSpacing)
+                                                    const rowSpacingVal = parseInt(editSpacing)
+
+                                                    if (!isNaN(spacingVal) && !isNaN(rowSpacingVal) && spacingVal > 0 && rowSpacingVal > 0) {
+                                                        const newPlacement = {
+                                                            ...selectedPlacement,
+                                                            custom_spacing_cm: spacingVal,
+                                                            custom_row_spacing_cm: rowSpacingVal
+                                                        }
+                                                        setSelectedPlacement(newPlacement)
+                                                        updatePlacement(selectedPlacement.id, {
+                                                            custom_spacing_cm: spacingVal,
+                                                            custom_row_spacing_cm: rowSpacingVal
+                                                        })
+                                                    }
+                                                }}
+                                                disabled={!canRotate}
+                                                className={`mt-4 p-2 rounded transition-colors ${canRotate
+                                                    ? 'text-gray-600 hover:text-primary-600 hover:bg-primary-50 cursor-pointer'
+                                                    : 'text-gray-300 cursor-not-allowed'
+                                                    }`}
+                                                title={canRotate ? "Swap spacing values" : "Cannot rotate - spacing won't fit"}
+                                            >
+                                                <RotateCw className="w-4 h-4" />
+                                            </button>
+                                        )
+                                    })()}
+
+                                    {/* Between rows spacing */}
+                                    <div className="flex-1">
+                                        <label className="block text-xs text-gray-400 mb-1">Between rows</label>
+                                        <div className="flex items-center gap-1">
+                                            <input
+                                                type="number"
+                                                value={editRowSpacing}
+                                                onChange={(e) => {
+                                                    const valStr = e.target.value
+                                                    setEditRowSpacing(valStr)
+                                                    const val = parseInt(valStr)
+                                                    if (!isNaN(val) && val > 0) {
+                                                        const newPlacement = { ...selectedPlacement, custom_row_spacing_cm: val }
+                                                        setSelectedPlacement(newPlacement)
+                                                        updatePlacement(selectedPlacement.id, { custom_row_spacing_cm: val })
+                                                    }
+                                                }}
+                                                className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                                                min={1}
+                                            />
+                                            <span className="text-xs text-gray-500">cm</span>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs text-gray-500 mb-1">Between rows</label>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="number"
-                                        value={selectedPlacement.custom_row_spacing_cm ?? selectedPlacement.crop.row_spacing_cm}
-                                        className="w-20 px-2 py-1 border border-gray-200 rounded text-sm"
-                                        readOnly
-                                    />
-                                    <span className="text-sm text-gray-500">cm</span>
-                                </div>
+
+                                {/* Warning message when rotation is blocked */}
+                                {(() => {
+                                    const widthCm = selectedPlacement.width_cells * 25
+                                    const heightCm = selectedPlacement.height_cells * 25
+                                    const spacingVal = parseInt(editSpacing)
+                                    const rowSpacingVal = parseInt(editRowSpacing)
+
+                                    const wouldFitX = !isNaN(rowSpacingVal) && widthCm >= rowSpacingVal
+                                    const wouldFitY = !isNaN(spacingVal) && heightCm >= spacingVal
+                                    const canRotate = wouldFitX && wouldFitY
+
+                                    if (!canRotate) {
+                                        return (
+                                            <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                                                <p className="text-xs text-amber-700">
+                                                    ⚠️ Cannot rotate: spacing values won't fit in {widthCm}×{heightCm}cm area
+                                                </p>
+                                            </div>
+                                        )
+                                    }
+                                    return null
+                                })()}
                             </div>
                         </div>
 
