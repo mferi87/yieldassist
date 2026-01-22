@@ -28,6 +28,12 @@ export default function OverviewPage() {
     const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null)
     const [dragEnd, setDragEnd] = useState<{ x: number; y: number } | null>(null)
 
+    // Bed drag offset state (for maintaining relative drag position)
+    const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null)
+    const [draggingBedId, setDraggingBedId] = useState<string | null>(null)
+    const [dragPreviewPos, setDragPreviewPos] = useState<{ x: number; y: number } | null>(null)
+    const [dragHasCollision, setDragHasCollision] = useState(false)
+
     useEffect(() => {
         if (gardenId) {
             fetchGarden(gardenId)
@@ -97,8 +103,53 @@ export default function OverviewPage() {
         })
     }
 
+    // Check if a bed at the given position would collide with any other bed
+    const checkBedCollision = (bedId: string, x: number, y: number, bedGridWidth: number, bedGridHeight: number): boolean => {
+        for (const otherBed of beds) {
+            if (otherBed.id === bedId) continue // Skip self
+
+            // Get other bed's grid dimensions
+            const otherWidthM = (otherBed.width_cells * 25) / 100
+            const otherHeightM = (otherBed.height_cells * 25) / 100
+            const otherGridWidth = Math.ceil(otherWidthM * 2)
+            const otherGridHeight = Math.ceil(otherHeightM * 2)
+
+            // Check for rectangle overlap (AABB collision)
+            const collides = !(
+                x + bedGridWidth <= otherBed.position_x ||      // bed is left of other
+                x >= otherBed.position_x + otherGridWidth ||    // bed is right of other
+                y + bedGridHeight <= otherBed.position_y ||     // bed is above other
+                y >= otherBed.position_y + otherGridHeight      // bed is below other
+            )
+
+            if (collides) return true
+        }
+        return false
+    }
+
     const handleBedDrag = (bedId: string, x: number, y: number) => {
-        updateBed(bedId, { position_x: x, position_y: y })
+        // Find the bed to get its dimensions
+        const bed = beds.find(b => b.id === bedId)
+        if (!bed || !currentGarden) return
+
+        // Convert bed dimensions from cells (25cm each) to grid cells (50cm each)
+        const bedGridWidth = Math.ceil((bed.width_cells * 25) / 100 * 2) // cells * 25cm / 100 * 2 grid cells per meter
+        const bedGridHeight = Math.ceil((bed.height_cells * 25) / 100 * 2)
+
+        // Grid dimensions
+        const gridCols = currentGarden.width_meters * 2
+        const gridRows = currentGarden.height_meters * 2
+
+        // Clamp position to keep bed within garden bounds
+        const clampedX = Math.max(0, Math.min(x, gridCols - bedGridWidth))
+        const clampedY = Math.max(0, Math.min(y, gridRows - bedGridHeight))
+
+        // Check for collision with other beds
+        if (checkBedCollision(bedId, clampedX, clampedY, bedGridWidth, bedGridHeight)) {
+            return // Don't move if there's a collision
+        }
+
+        updateBed(bedId, { position_x: clampedX, position_y: clampedY })
     }
 
     if (isLoading && !currentGarden) {
@@ -267,18 +318,52 @@ export default function OverviewPage() {
                             cursor: isEditMode ? 'crosshair' : 'default',
                         }}
                         onDragOver={(e) => {
-                            if (isEditMode) {
-                                e.preventDefault()
+                            if (!isEditMode) return
+                            e.preventDefault()
+                            if (!draggingBedId) return
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            const mouseX = Math.floor((e.clientX - rect.left) / cellSize)
+                            const mouseY = Math.floor((e.clientY - rect.top) / cellSize)
+                            // Apply offset to get the bed's top-left position
+                            const previewX = mouseX - (dragOffset?.x || 0)
+                            const previewY = mouseY - (dragOffset?.y || 0)
+
+                            // Find the dragged bed for boundary clamping
+                            const draggedBed = beds.find(b => b.id === draggingBedId)
+                            if (draggedBed && currentGarden) {
+                                const bedGridWidth = Math.ceil((draggedBed.width_cells * 25) / 100 * 2)
+                                const bedGridHeight = Math.ceil((draggedBed.height_cells * 25) / 100 * 2)
+                                const clampedX = Math.max(0, Math.min(previewX, gridCols - bedGridWidth))
+                                const clampedY = Math.max(0, Math.min(previewY, gridRows - bedGridHeight))
+                                setDragPreviewPos({ x: clampedX, y: clampedY })
+                                // Check for collision with other beds
+                                const hasCollision = checkBedCollision(draggingBedId, clampedX, clampedY, bedGridWidth, bedGridHeight)
+                                setDragHasCollision(hasCollision)
+                            } else {
+                                setDragPreviewPos({ x: previewX, y: previewY })
+                                setDragHasCollision(false)
                             }
+                        }}
+                        onDragLeave={() => {
+                            setDragPreviewPos(null)
+                            setDragHasCollision(false)
                         }}
                         onDrop={(e) => {
                             if (!isEditMode) return
                             e.preventDefault()
                             const bedId = e.dataTransfer.getData('bedId')
                             const rect = e.currentTarget.getBoundingClientRect()
-                            const x = Math.floor((e.clientX - rect.left) / cellSize)
-                            const y = Math.floor((e.clientY - rect.top) / cellSize)
+                            const mouseX = Math.floor((e.clientX - rect.left) / cellSize)
+                            const mouseY = Math.floor((e.clientY - rect.top) / cellSize)
+                            // Apply offset so bed moves relative to where it was grabbed
+                            const x = mouseX - (dragOffset?.x || 0)
+                            const y = mouseY - (dragOffset?.y || 0)
                             handleBedDrag(bedId, x, y)
+                            // Clear drag state
+                            setDragOffset(null)
+                            setDraggingBedId(null)
+                            setDragPreviewPos(null)
+                            setDragHasCollision(false)
                         }}
                         onMouseDown={(e) => {
                             if (!isEditMode) return
@@ -352,8 +437,36 @@ export default function OverviewPage() {
                                 placements={placementsByBed[bed.id] || []}
                                 onBedClick={(bedId) => navigate(`/garden/${gardenId}/beds?bed=${bedId}`)}
                                 onEditBed={(bed) => openEditModal(bed)}
+                                onDragStart={(bedId, offsetX, offsetY) => {
+                                    setDragOffset({ x: offsetX, y: offsetY })
+                                    setDraggingBedId(bedId)
+                                }}
                             />
                         ))}
+
+                        {/* Bed Drag Preview */}
+                        {draggingBedId && dragPreviewPos && (() => {
+                            const draggedBed = beds.find(b => b.id === draggingBedId)
+                            if (!draggedBed) return null
+                            const bedWidthM = (draggedBed.width_cells * 25) / 100
+                            const bedHeightM = (draggedBed.height_cells * 25) / 100
+                            const previewWidth = bedWidthM * 2 * cellSize
+                            const previewHeight = bedHeightM * 2 * cellSize
+                            return (
+                                <div
+                                    className={`absolute border-2 border-dashed rounded-lg pointer-events-none z-50 ${dragHasCollision
+                                            ? 'bg-red-300/40 border-red-600 dark:border-red-400'
+                                            : 'bg-primary-300/40 border-primary-600 dark:border-primary-400'
+                                        }`}
+                                    style={{
+                                        left: dragPreviewPos.x * cellSize,
+                                        top: dragPreviewPos.y * cellSize,
+                                        width: previewWidth,
+                                        height: previewHeight,
+                                    }}
+                                />
+                            )
+                        })()}
                     </div>
 
                     {/* Grid legend */}
@@ -581,6 +694,7 @@ function BedComponent({
     placements,
     onBedClick,
     onEditBed,
+    onDragStart,
 }: {
     bed: Bed
     cellSize: number
@@ -589,6 +703,7 @@ function BedComponent({
     placements: CropPlacement[]
     onBedClick?: (bedId: string) => void
     onEditBed?: (bed: Bed) => void
+    onDragStart?: (bedId: string, offsetX: number, offsetY: number) => void
 }) {
     // Convert cells to meters (25cm per cell = 0.25m)
     const widthM = (bed.width_cells * 25) / 100
@@ -617,6 +732,17 @@ function BedComponent({
             draggable={isEditMode}
             onDragStart={(e) => {
                 e.dataTransfer.setData('bedId', bed.id)
+                // Hide browser's default drag ghost image
+                const emptyImg = new Image()
+                emptyImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+                e.dataTransfer.setDragImage(emptyImg, 0, 0)
+                // Calculate offset: where on the bed the user clicked (in grid cells)
+                const bedRect = e.currentTarget.getBoundingClientRect()
+                const offsetX = Math.floor((e.clientX - bedRect.left) / cellSize)
+                const offsetY = Math.floor((e.clientY - bedRect.top) / cellSize)
+                if (onDragStart) {
+                    onDragStart(bed.id, offsetX, offsetY)
+                }
             }}
             onClick={() => {
                 if (!isEditMode && onBedClick) {
