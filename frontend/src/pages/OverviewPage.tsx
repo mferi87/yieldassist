@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useGardenStore, type Bed } from '../store/gardenStore'
 import { useCropStore, type CropPlacement } from '../store/cropStore'
+import { useThemeStore } from '../store/themeStore'
 import { Edit, Eye, Plus, Loader2, ArrowLeft, GripVertical, X, Pencil, Trash2 } from 'lucide-react'
 
 import { getCropEmoji } from '../utils/cropUtils'
@@ -13,6 +14,7 @@ export default function OverviewPage() {
     const navigate = useNavigate()
     const { currentGarden, beds, fetchGarden, fetchBeds, createBed, updateBed, deleteBed, isLoading } = useGardenStore()
     const { gardenPlacements, fetchGardenPlacements } = useCropStore()
+    const { isDark } = useThemeStore()
     const [isEditMode, setIsEditMode] = useState(false)
     const [showBedPanel, setShowBedPanel] = useState(false)
     const [showBedModal, setShowBedModal] = useState(false)
@@ -130,13 +132,13 @@ export default function OverviewPage() {
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => navigate('/')}
-                        className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
                     >
-                        <ArrowLeft className="w-5 h-5 text-gray-600" />
+                        <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                     </button>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">{currentGarden.name}</h1>
-                        <p className="text-gray-500">
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{currentGarden.name}</h1>
+                        <p className="text-gray-500 dark:text-gray-400">
                             {currentGarden.width_meters}m × {currentGarden.height_meters}m • {beds.length} beds
                         </p>
                     </div>
@@ -149,7 +151,7 @@ export default function OverviewPage() {
                     }}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all ${isEditMode
                         ? 'bg-primary-500 text-white'
-                        : 'bg-white border border-gray-200 text-gray-700 hover:border-primary-300'
+                        : 'bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:border-primary-300'
                         }`}
                 >
                     {isEditMode ? (
@@ -169,19 +171,19 @@ export default function OverviewPage() {
             <div className="flex gap-6">
                 {/* Left Panel - Bed List (Edit Mode) */}
                 {showBedPanel && (
-                    <div className="w-64 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 shrink-0">
+                    <div className="w-64 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 shrink-0">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-semibold text-gray-900">Beds</h3>
+                            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Beds</h3>
                             <button
                                 onClick={() => setShowBedModal(true)}
-                                className="p-1.5 rounded-lg bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors"
+                                className="p-1.5 rounded-lg bg-primary-50 dark:bg-primary-900 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-800 transition-colors"
                             >
                                 <Plus className="w-4 h-4" />
                             </button>
                         </div>
 
                         {beds.length === 0 ? (
-                            <p className="text-sm text-gray-500 text-center py-4">
+                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
                                 No beds yet. Create one to get started!
                             </p>
                         ) : (
@@ -189,7 +191,7 @@ export default function OverviewPage() {
                                 {beds.map((bed) => (
                                     <div
                                         key={bed.id}
-                                        className="flex items-center gap-2 p-3 rounded-xl bg-gray-50 hover:bg-primary-50 transition-colors group"
+                                        className="flex items-center gap-2 p-3 rounded-xl bg-gray-50 dark:bg-dark-bg hover:bg-primary-50 dark:hover:bg-dark-selected transition-colors group"
                                     >
                                         <div
                                             className="cursor-grab"
@@ -210,8 +212,8 @@ export default function OverviewPage() {
                                                 }
                                             }}
                                         >
-                                            <p className="font-medium text-gray-900 text-sm truncate hover:text-primary-600">{bed.name}</p>
-                                            <p className="text-xs text-gray-500">
+                                            <p className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate hover:text-primary-600">{bed.name}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
                                                 {(bed.width_cells * 25) / 100}m × {(bed.height_cells * 25) / 100}m
                                             </p>
                                         </div>
@@ -243,22 +245,25 @@ export default function OverviewPage() {
                 )}
 
                 {/* Garden Grid */}
-                <div className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 overflow-auto">
+                <div className="flex-1 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 overflow-auto">
                     <div
                         className="relative mx-auto"
                         style={{
                             width: gridCols * cellSize,
                             height: gridRows * cellSize,
-                            backgroundImage: `
-                                linear-gradient(to right, #9ca3af 1px, transparent 1px),
-                                linear-gradient(to bottom, #9ca3af 1px, transparent 1px),
-                                linear-gradient(to right, #e5e7eb 1px, transparent 1px),
-                                linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)
-                            `,
+                            backgroundImage: isDark
+                                ? `linear-gradient(to right, #444 1px, transparent 1px),
+                                   linear-gradient(to bottom, #444 1px, transparent 1px),
+                                   linear-gradient(to right, #333 1px, transparent 1px),
+                                   linear-gradient(to bottom, #333 1px, transparent 1px)`
+                                : `linear-gradient(to right, #9ca3af 1px, transparent 1px),
+                                   linear-gradient(to bottom, #9ca3af 1px, transparent 1px),
+                                   linear-gradient(to right, #e5e7eb 1px, transparent 1px),
+                                   linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)`,
                             backgroundSize: `${cellSize * 2}px ${cellSize * 2}px, ${cellSize * 2}px ${cellSize * 2}px, ${cellSize}px ${cellSize}px, ${cellSize}px ${cellSize}px`,
-                            backgroundColor: '#fafafa',
+                            backgroundColor: isDark ? '#1c1c1c' : '#fafafa',
                             borderRadius: '8px',
-                            border: '1px solid #9ca3af',
+                            border: isDark ? '1px solid #444' : '1px solid #9ca3af',
                             cursor: isEditMode ? 'crosshair' : 'default',
                         }}
                         onDragOver={(e) => {
@@ -343,6 +348,7 @@ export default function OverviewPage() {
                                 bed={bed}
                                 cellSize={cellSize}
                                 isEditMode={isEditMode}
+                                isDark={isDark}
                                 placements={placementsByBed[bed.id] || []}
                                 onBedClick={(bedId) => navigate(`/garden/${gardenId}/beds?bed=${bedId}`)}
                                 onEditBed={(bed) => openEditModal(bed)}
@@ -351,7 +357,7 @@ export default function OverviewPage() {
                     </div>
 
                     {/* Grid legend */}
-                    <div className="mt-4 text-center text-sm text-gray-500">
+                    <div className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
                         Each cell = 0.5m × 0.5m
                     </div>
                 </div>
@@ -361,40 +367,40 @@ export default function OverviewPage() {
             {showBedModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowBedModal(false)} />
-                    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+                    <div className="relative bg-white dark:bg-dark-surface rounded-2xl shadow-2xl w-full max-w-md p-6">
                         <button
                             onClick={() => setShowBedModal(false)}
-                            className="absolute top-4 right-4 p-1 rounded-lg hover:bg-gray-100"
+                            className="absolute top-4 right-4 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-bg"
                         >
                             <X className="w-5 h-5 text-gray-400" />
                         </button>
 
-                        <h2 className="text-xl font-semibold text-gray-900 mb-6">{t('bed.create')}</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">{t('bed.create')}</h2>
 
                         <form onSubmit={handleAddBed} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     {t('bed.name')}
                                 </label>
                                 <input
                                     type="text"
                                     value={newBed.name}
                                     onChange={(e) => setNewBed({ ...newBed, name: e.target.value })}
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all outline-none"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-900 transition-all outline-none text-gray-900 dark:text-gray-100"
                                     placeholder={`Bed ${beds.length + 1}`}
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Width (m)
                                     </label>
                                     <input
                                         type="number"
                                         value={newBed.width_m}
                                         onChange={(e) => setNewBed({ ...newBed, width_m: Number(e.target.value) })}
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all outline-none"
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-900 transition-all outline-none text-gray-900 dark:text-gray-100"
                                         min={0.25}
                                         max={10}
                                         step={0.25}
@@ -402,14 +408,14 @@ export default function OverviewPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Height (m)
                                     </label>
                                     <input
                                         type="number"
                                         value={newBed.height_m}
                                         onChange={(e) => setNewBed({ ...newBed, height_m: Number(e.target.value) })}
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all outline-none"
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-900 transition-all outline-none text-gray-900 dark:text-gray-100"
                                         min={0.25}
                                         max={10}
                                         step={0.25}
@@ -418,7 +424,7 @@ export default function OverviewPage() {
                                 </div>
                             </div>
 
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
                                 Bed size: {newBed.width_m}m × {newBed.height_m}m = {(newBed.width_m * newBed.height_m).toFixed(2)} m²
                             </p>
 
@@ -438,40 +444,40 @@ export default function OverviewPage() {
             {editingBed && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setEditingBed(null); setNewBed({ name: '', width_m: 1, height_m: 2 }); }} />
-                    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+                    <div className="relative bg-white dark:bg-dark-surface rounded-2xl shadow-2xl w-full max-w-md p-6">
                         <button
                             onClick={() => { setEditingBed(null); setNewBed({ name: '', width_m: 1, height_m: 2 }); }}
-                            className="absolute top-4 right-4 p-1 rounded-lg hover:bg-gray-100"
+                            className="absolute top-4 right-4 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-bg"
                         >
                             <X className="w-5 h-5 text-gray-400" />
                         </button>
 
-                        <h2 className="text-xl font-semibold text-gray-900 mb-6">{t('common.edit')} {editingBed.name}</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">{t('common.edit')} {editingBed.name}</h2>
 
                         <form onSubmit={handleEditBed} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     {t('bed.name')}
                                 </label>
                                 <input
                                     type="text"
                                     value={newBed.name}
                                     onChange={(e) => setNewBed({ ...newBed, name: e.target.value })}
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all outline-none"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-900 transition-all outline-none"
                                     placeholder={editingBed.name}
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Width (m)
                                     </label>
                                     <input
                                         type="number"
                                         value={newBed.width_m}
                                         onChange={(e) => setNewBed({ ...newBed, width_m: Number(e.target.value) })}
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all outline-none"
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-900 transition-all outline-none"
                                         min={0.25}
                                         max={10}
                                         step={0.25}
@@ -479,14 +485,14 @@ export default function OverviewPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Height (m)
                                     </label>
                                     <input
                                         type="number"
                                         value={newBed.height_m}
                                         onChange={(e) => setNewBed({ ...newBed, height_m: Number(e.target.value) })}
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all outline-none"
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-900 transition-all outline-none"
                                         min={0.25}
                                         max={10}
                                         step={0.25}
@@ -495,7 +501,7 @@ export default function OverviewPage() {
                                 </div>
                             </div>
 
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
                                 Bed size: {newBed.width_m}m × {newBed.height_m}m = {(newBed.width_m * newBed.height_m).toFixed(2)} m²
                             </p>
 
@@ -515,25 +521,25 @@ export default function OverviewPage() {
             {deletingBed && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setDeletingBed(null); setDeleteConfirmName(''); }} />
-                    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+                    <div className="relative bg-white dark:bg-dark-surface rounded-2xl shadow-2xl w-full max-w-md p-6">
                         <button
                             onClick={() => { setDeletingBed(null); setDeleteConfirmName(''); }}
-                            className="absolute top-4 right-4 p-1 rounded-lg hover:bg-gray-100"
+                            className="absolute top-4 right-4 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-bg"
                         >
                             <X className="w-5 h-5 text-gray-400" />
                         </button>
 
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
-                                <Trash2 className="w-6 h-6 text-red-600" />
+                            <div className="w-12 h-12 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                                <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
                             </div>
                             <div>
-                                <h2 className="text-xl font-semibold text-gray-900">{t('common.delete')} Bed</h2>
-                                <p className="text-sm text-gray-500">This action cannot be undone</p>
+                                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t('common.delete')} Bed</h2>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">This action cannot be undone</p>
                             </div>
                         </div>
 
-                        <p className="text-gray-600 mb-4">
+                        <p className="text-gray-600 dark:text-gray-300 mb-4">
                             To delete <strong>"{deletingBed.name}"</strong>, please type the bed name to confirm:
                         </p>
 
@@ -541,14 +547,14 @@ export default function OverviewPage() {
                             type="text"
                             value={deleteConfirmName}
                             onChange={(e) => setDeleteConfirmName(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-red-500 focus:ring-2 focus:ring-red-100 transition-all outline-none mb-4"
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 focus:border-red-500 focus:ring-2 focus:ring-red-100 dark:focus:ring-red-900 transition-all outline-none mb-4"
                             placeholder={deletingBed.name}
                         />
 
                         <div className="flex gap-3">
                             <button
                                 onClick={() => { setDeletingBed(null); setDeleteConfirmName(''); }}
-                                className="flex-1 py-3 px-4 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-all"
+                                className="flex-1 py-3 px-4 rounded-xl bg-gray-100 dark:bg-dark-bg text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-dark-selected transition-all"
                             >
                                 Cancel
                             </button>
@@ -571,6 +577,7 @@ function BedComponent({
     bed,
     cellSize,
     isEditMode,
+    isDark,
     placements,
     onBedClick,
     onEditBed,
@@ -578,6 +585,7 @@ function BedComponent({
     bed: Bed
     cellSize: number
     isEditMode: boolean
+    isDark: boolean
     placements: CropPlacement[]
     onBedClick?: (bedId: string) => void
     onEditBed?: (bed: Bed) => void
@@ -597,8 +605,8 @@ function BedComponent({
         <div
             data-bed
             className={`absolute rounded-lg border-2 transition-all overflow-hidden ${isEditMode
-                ? 'border-primary-400 bg-primary-100/80 cursor-move hover:border-primary-500'
-                : 'border-earth-400 bg-earth-100/80 cursor-pointer hover:shadow-lg'
+                ? 'border-primary-400 dark:border-primary-500 bg-primary-100 dark:bg-dark-bed cursor-move hover:border-primary-500'
+                : 'border-earth-400 dark:border-earth-600 bg-earth-100 dark:bg-dark-bed cursor-pointer hover:shadow-lg'
                 }`}
             style={{
                 left: bed.position_x * cellSize,
@@ -633,7 +641,7 @@ function BedComponent({
                             top: placement.position_y * scaleY,
                             width: placement.width_cells * scaleX,
                             height: placement.height_cells * scaleY,
-                            backgroundColor: 'rgba(255,255,255,0.4)',
+                            backgroundColor: isDark ? 'rgba(80,60,40,0.6)' : 'rgba(255,255,255,0.4)',
                             borderRadius: 2,
                         }}
                     >
@@ -652,7 +660,7 @@ function BedComponent({
             {/* Bed name label */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <span
-                    className={`text-xs font-medium text-earth-700 bg-white/90 px-1.5 py-0.5 rounded shadow-sm pointer-events-auto cursor-pointer hover:bg-white hover:text-primary-600`}
+                    className={`text-xs font-medium text-earth-700 dark:text-earth-100 bg-white/90 dark:bg-dark-surface/90 px-1.5 py-0.5 rounded shadow-sm pointer-events-auto cursor-pointer hover:bg-white dark:hover:bg-dark-surface hover:text-primary-600`}
                     onClick={(e) => {
                         e.stopPropagation()
                         if (isEditMode && onEditBed) {

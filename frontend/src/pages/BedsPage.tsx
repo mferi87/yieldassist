@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useGardenStore, type Bed } from '../store/gardenStore'
 import { useCropStore, type Crop, type CropPlacement } from '../store/cropStore'
+import { useThemeStore } from '../store/themeStore'
 import { Loader2, Plus, Edit, Eye, Trash2, Settings, RotateCw } from 'lucide-react'
 
 // Color palette for crops
@@ -27,6 +28,7 @@ export default function BedsPage() {
     const [searchParams] = useSearchParams()
     const { currentGarden, beds, fetchGarden, fetchBeds, isLoading } = useGardenStore()
     const { crops, placements, fetchCrops, fetchPlacements, createPlacement, deletePlacement, updatePlacement } = useCropStore()
+    const { isDark } = useThemeStore()
     const [selectedBed, setSelectedBed] = useState<Bed | null>(null)
     const [editMode, setEditMode] = useState<'view' | 'crops' | 'zones'>('view')
     const [selectedCrop, setSelectedCrop] = useState<Crop | null>(null)
@@ -335,16 +337,16 @@ export default function BedsPage() {
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">{t('bed.title')}</h1>
-                    <p className="text-gray-500">{currentGarden?.name}</p>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('bed.title')}</h1>
+                    <p className="text-gray-500 dark:text-gray-400">{currentGarden?.name}</p>
                 </div>
 
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setEditMode('view')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${editMode === 'view'
-                            ? 'bg-primary-100 text-primary-700'
-                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                            ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                            : 'bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-bg'
                             }`}
                     >
                         <Eye className="w-4 h-4" />
@@ -353,8 +355,8 @@ export default function BedsPage() {
                     <button
                         onClick={() => setEditMode('crops')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${editMode === 'crops'
-                            ? 'bg-primary-100 text-primary-700'
-                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                            ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                            : 'bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-bg'
                             }`}
                     >
                         <Edit className="w-4 h-4" />
@@ -363,8 +365,8 @@ export default function BedsPage() {
                     <button
                         onClick={() => setEditMode('zones')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${editMode === 'zones'
-                            ? 'bg-primary-100 text-primary-700'
-                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                            ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                            : 'bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-bg'
                             }`}
                     >
                         <Edit className="w-4 h-4" />
@@ -375,11 +377,11 @@ export default function BedsPage() {
 
             <div className="flex gap-6">
                 {/* Bed Selector */}
-                <div className="w-64 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 shrink-0">
-                    <h3 className="font-semibold text-gray-900 mb-4">Select Bed</h3>
+                <div className="w-64 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 shrink-0">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Select Bed</h3>
 
                     {beds.length === 0 ? (
-                        <p className="text-sm text-gray-500 text-center py-4">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
                             No beds available. Create beds in Overview.
                         </p>
                     ) : (
@@ -389,12 +391,12 @@ export default function BedsPage() {
                                     key={bed.id}
                                     onClick={() => setSelectedBed(bed)}
                                     className={`w-full text-left p-3 rounded-xl transition-colors ${selectedBed?.id === bed.id
-                                        ? 'bg-primary-100 border-2 border-primary-300'
-                                        : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
+                                        ? 'bg-primary-100 dark:bg-dark-selected border-2 border-primary-300 dark:border-primary-600'
+                                        : 'bg-gray-50 dark:bg-dark-bg hover:bg-gray-100 dark:hover:bg-dark-selected border-2 border-transparent'
                                         }`}
                                 >
-                                    <p className="font-medium text-gray-900">{bed.name}</p>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="font-medium text-gray-900 dark:text-gray-100">{bed.name}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
                                         {(bed.width_cells * 25) / 100}m × {(bed.height_cells * 25) / 100}m
                                     </p>
                                 </button>
@@ -404,12 +406,12 @@ export default function BedsPage() {
                 </div>
 
                 {/* Bed Grid */}
-                <div className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <div className="flex-1 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
                     {selectedBed ? (
                         <>
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="font-semibold text-gray-900">{selectedBed.name}</h3>
-                                <span className="text-sm text-gray-500">
+                                <h3 className="font-semibold text-gray-900 dark:text-gray-100">{selectedBed.name}</h3>
+                                <span className="text-sm text-gray-500 dark:text-gray-400">
                                     Each cell = 25cm × 25cm
                                 </span>
                             </div>
@@ -418,7 +420,7 @@ export default function BedsPage() {
                                 <div
                                     ref={gridRef}
                                     onContextMenu={(e) => e.preventDefault()}
-                                    className="mx-auto border border-gray-200 rounded-lg select-none"
+                                    className="mx-auto border border-gray-200 dark:border-gray-600 rounded-lg select-none"
                                     style={{
                                         width: gridWidth * cellSize,
                                         height: gridHeight * cellSize,
@@ -467,10 +469,10 @@ export default function BedsPage() {
                                                     } ${isDrawSelection && selectedCrop ? 'ring-2 ring-primary-400 ring-inset' : ''}`}
                                                 style={{
                                                     backgroundColor: bgColor,
-                                                    borderTop: isTopMeterLine ? '1px solid #9ca3af' : '1px solid #e5e7eb',
-                                                    borderLeft: isLeftMeterLine ? '1px solid #9ca3af' : '1px solid #e5e7eb',
-                                                    borderRight: isRightMeterLine ? '1px solid #9ca3af' : '1px solid #e5e7eb',
-                                                    borderBottom: isBottomMeterLine ? '1px solid #9ca3af' : '1px solid #e5e7eb',
+                                                    borderTop: isTopMeterLine ? (isDark ? '1px solid #444' : '1px solid #9ca3af') : (isDark ? '1px solid #333' : '1px solid #e5e7eb'),
+                                                    borderLeft: isLeftMeterLine ? (isDark ? '1px solid #444' : '1px solid #9ca3af') : (isDark ? '1px solid #333' : '1px solid #e5e7eb'),
+                                                    borderRight: isRightMeterLine ? (isDark ? '1px solid #444' : '1px solid #9ca3af') : (isDark ? '1px solid #333' : '1px solid #e5e7eb'),
+                                                    borderBottom: isBottomMeterLine ? (isDark ? '1px solid #444' : '1px solid #9ca3af') : (isDark ? '1px solid #333' : '1px solid #e5e7eb'),
                                                 }}
                                                 onMouseDown={(e) => {
                                                     if (placement && editMode === 'crops') {
@@ -612,20 +614,20 @@ export default function BedsPage() {
 
                 {/* Right Panel (Edit Mode) */}
                 {editMode === 'crops' && (
-                    <div className="w-72 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 shrink-0">
-                        <h3 className="font-semibold text-gray-900 mb-4">Crop Library</h3>
+                    <div className="w-72 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 shrink-0">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Crop Library</h3>
 
                         {/* Spacing Settings */}
                         {selectedCrop && (
-                            <div className="mb-4 p-3 rounded-xl bg-gray-50">
+                            <div className="mb-4 p-3 rounded-xl bg-gray-50 dark:bg-dark-bg">
                                 <div className="flex items-center gap-2 mb-3">
-                                    <Settings className="w-4 h-4 text-gray-500" />
-                                    <span className="text-sm font-medium text-gray-700">Plant Spacing</span>
+                                    <Settings className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Plant Spacing</span>
                                 </div>
 
                                 {/* In-row spacing */}
                                 <div className="mb-2">
-                                    <label className="text-xs text-gray-500 block mb-1">In-row (between plants)</label>
+                                    <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">In-row (between plants)</label>
                                     <div className="flex items-center gap-2">
                                         <input
                                             type="number"
@@ -634,17 +636,17 @@ export default function BedsPage() {
                                                 const val = parseInt(e.target.value)
                                                 setCustomSpacing(val > 0 ? val : null)
                                             }}
-                                            className="w-20 px-2 py-1 rounded border border-gray-200 text-sm"
+                                            className="w-20 px-2 py-1 rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-surface text-gray-900 dark:text-gray-100 text-sm"
                                             min={5}
                                             max={200}
                                         />
-                                        <span className="text-sm text-gray-500">cm</span>
+                                        <span className="text-sm text-gray-500 dark:text-gray-400">cm</span>
                                     </div>
                                 </div>
 
                                 {/* Row spacing */}
                                 <div className="mb-2">
-                                    <label className="text-xs text-gray-500 block mb-1">Between rows</label>
+                                    <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Between rows</label>
                                     <div className="flex items-center gap-2">
                                         <input
                                             type="number"
@@ -653,11 +655,11 @@ export default function BedsPage() {
                                                 const val = parseInt(e.target.value)
                                                 setCustomRowSpacing(val > 0 ? val : null)
                                             }}
-                                            className="w-20 px-2 py-1 rounded border border-gray-200 text-sm"
+                                            className="w-20 px-2 py-1 rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-surface text-gray-900 dark:text-gray-100 text-sm"
                                             min={5}
                                             max={200}
                                         />
-                                        <span className="text-sm text-gray-500">cm</span>
+                                        <span className="text-sm text-gray-500 dark:text-gray-400">cm</span>
                                     </div>
                                 </div>
 
@@ -669,7 +671,7 @@ export default function BedsPage() {
                                         setCustomSpacing(currentRowSpacing)
                                         setCustomRowSpacing(currentSpacing)
                                     }}
-                                    className="w-full flex items-center justify-center gap-2 text-sm text-gray-700 hover:text-primary-700 bg-white border border-gray-200 hover:border-primary-300 hover:bg-primary-50 px-3 py-1.5 rounded-lg transition-colors mb-2"
+                                    className="w-full flex items-center justify-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-primary-700 dark:hover:text-primary-400 bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-600 hover:border-primary-300 hover:bg-primary-50 dark:hover:bg-dark-selected px-3 py-1.5 rounded-lg transition-colors mb-2"
                                     title="Swap spacing values"
                                 >
                                     <RotateCw className="w-3.5 h-3.5" />
@@ -682,7 +684,7 @@ export default function BedsPage() {
                                             setCustomSpacing(null)
                                             setCustomRowSpacing(null)
                                         }}
-                                        className="text-xs text-primary-600 hover:underline mt-1"
+                                        className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-1"
                                     >
                                         Reset to defaults
                                     </button>
@@ -699,8 +701,8 @@ export default function BedsPage() {
                                     key={crop.id}
                                     onClick={() => setSelectedCrop(crop)}
                                     className={`p-3 rounded-xl cursor-pointer transition-colors ${selectedCrop?.id === crop.id
-                                        ? 'bg-primary-100 border-2 border-primary-300'
-                                        : 'bg-gray-50 hover:bg-primary-50 border-2 border-transparent'
+                                        ? 'bg-primary-100 dark:bg-dark-selected border-2 border-primary-300 dark:border-primary-600'
+                                        : 'bg-gray-50 dark:bg-dark-bg hover:bg-primary-50 dark:hover:bg-dark-selected border-2 border-transparent'
                                         }`}
                                 >
                                     <div className="flex items-center gap-2">
@@ -715,9 +717,9 @@ export default function BedsPage() {
                                             }
                                             return <span className="text-2xl leading-none">{icon}</span>
                                         })()}
-                                        <p className="font-medium text-gray-900">{crop.name}</p>
+                                        <p className="font-medium text-gray-900 dark:text-gray-100">{crop.name}</p>
                                     </div>
-                                    <p className="text-xs text-gray-500 mt-1">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                         {crop.spacing_cm}×{crop.row_spacing_cm}cm grid
                                     </p>
                                 </div>
@@ -726,12 +728,12 @@ export default function BedsPage() {
 
                         {/* Placed Crops Summary */}
                         {placements.length > 0 && (
-                            <div className="mt-4 pt-4 border-t border-gray-100">
-                                <h4 className="text-sm font-medium text-gray-700 mb-2">Planted Crops</h4>
+                            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Planted Crops</h4>
                                 <div className="space-y-1">
                                     {placements.map((p) => (
                                         <div key={p.id} className="flex items-center justify-between text-sm">
-                                            <span className="text-gray-600">{p.crop.name}</span>
+                                            <span className="text-gray-600 dark:text-gray-400">{p.crop.name}</span>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-gray-400">{calculatePlantCount(p)} plants</span>
                                                 <button
@@ -750,13 +752,13 @@ export default function BedsPage() {
                 )}
 
                 {editMode === 'zones' && (
-                    <div className="w-72 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 shrink-0">
-                        <h3 className="font-semibold text-gray-900 mb-4">Zone Editor</h3>
-                        <button className="w-full flex items-center gap-2 p-3 rounded-xl bg-primary-50 text-primary-700 hover:bg-primary-100 transition-colors">
+                    <div className="w-72 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 shrink-0">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Zone Editor</h3>
+                        <button className="w-full flex items-center gap-2 p-3 rounded-xl bg-primary-50 dark:bg-dark-selected text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-dark-bg transition-colors">
                             <Plus className="w-4 h-4" />
                             New Zone
                         </button>
-                        <p className="text-xs text-gray-500 mt-4">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
                             Zones group cells for sensor and irrigation control.
                         </p>
                     </div>
@@ -770,7 +772,7 @@ export default function BedsPage() {
                     onClick={() => setSelectedPlacement(null)}
                 >
                     <div
-                        className="bg-white rounded-2xl shadow-xl p-6 w-80 max-w-[90vw]"
+                        className="bg-white dark:bg-dark-surface rounded-2xl shadow-xl p-6 w-80 max-w-[90vw]"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {(() => {
@@ -783,8 +785,8 @@ export default function BedsPage() {
                                 <div className="flex items-center gap-3 mb-4">
                                     <span className="text-3xl">{getCropEmoji(selectedPlacement.crop.name)}</span>
                                     <div className="flex items-baseline gap-2">
-                                        <h3 className="font-semibold text-gray-900">{selectedPlacement.crop.name}</h3>
-                                        <span className="text-2xl font-bold text-primary-600">{totalPlants}</span>
+                                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">{selectedPlacement.crop.name}</h3>
+                                        <span className="text-2xl font-bold text-primary-600 dark:text-primary-400">{totalPlants}</span>
                                     </div>
                                 </div>
                             )
@@ -832,22 +834,22 @@ export default function BedsPage() {
 
                                             {/* Plants per row control */}
                                             <div className="flex items-center justify-between">
-                                                <span className="text-sm text-gray-600">Plants per row</span>
+                                                <span className="text-sm text-gray-600 dark:text-gray-400">Plants per row</span>
                                                 <div className="flex items-center gap-2">
                                                     <button
                                                         onClick={() => adjustPlantsPerRow(-1)}
                                                         disabled={plantsX <= 1}
                                                         className={`w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold transition-colors ${plantsX <= 1
-                                                            ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                                                            : 'bg-gray-100 text-gray-600 hover:bg-primary-100 hover:text-primary-600'
+                                                            ? 'bg-gray-100 dark:bg-dark-bg text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                                                            : 'bg-gray-100 dark:bg-dark-bg text-gray-600 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-dark-selected hover:text-primary-600 dark:hover:text-primary-400'
                                                             }`}
                                                     >
                                                         −
                                                     </button>
-                                                    <span className="w-8 text-center font-semibold text-gray-900">{plantsX}</span>
+                                                    <span className="w-8 text-center font-semibold text-gray-900 dark:text-gray-100">{plantsX}</span>
                                                     <button
                                                         onClick={() => adjustPlantsPerRow(1)}
-                                                        className="w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold bg-gray-100 text-gray-600 hover:bg-primary-100 hover:text-primary-600 transition-colors"
+                                                        className="w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold bg-gray-100 dark:bg-dark-bg text-gray-600 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-dark-selected hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                                                     >
                                                         +
                                                     </button>
@@ -856,22 +858,22 @@ export default function BedsPage() {
 
                                             {/* Number of rows control */}
                                             <div className="flex items-center justify-between">
-                                                <span className="text-sm text-gray-600">Number of rows</span>
+                                                <span className="text-sm text-gray-600 dark:text-gray-400">Number of rows</span>
                                                 <div className="flex items-center gap-2">
                                                     <button
                                                         onClick={() => adjustRows(-1)}
                                                         disabled={plantsY <= 1}
                                                         className={`w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold transition-colors ${plantsY <= 1
-                                                            ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                                                            : 'bg-gray-100 text-gray-600 hover:bg-primary-100 hover:text-primary-600'
+                                                            ? 'bg-gray-100 dark:bg-dark-bg text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                                                            : 'bg-gray-100 dark:bg-dark-bg text-gray-600 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-dark-selected hover:text-primary-600 dark:hover:text-primary-400'
                                                             }`}
                                                     >
                                                         −
                                                     </button>
-                                                    <span className="w-8 text-center font-semibold text-gray-900">{plantsY}</span>
+                                                    <span className="w-8 text-center font-semibold text-gray-900 dark:text-gray-100">{plantsY}</span>
                                                     <button
                                                         onClick={() => adjustRows(1)}
-                                                        className="w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold bg-gray-100 text-gray-600 hover:bg-primary-100 hover:text-primary-600 transition-colors"
+                                                        className="w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold bg-gray-100 dark:bg-dark-bg text-gray-600 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-dark-selected hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                                                     >
                                                         +
                                                     </button>
@@ -883,7 +885,7 @@ export default function BedsPage() {
                             </div>
 
                             <div>
-                                <label className="block text-xs text-gray-500 mb-2">Plant Spacing</label>
+                                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-2">Plant Spacing</label>
                                 <div className="flex items-center gap-2">
                                     {/* In-row spacing */}
                                     <div className="flex-1">
@@ -902,10 +904,10 @@ export default function BedsPage() {
                                                         updatePlacement(selectedPlacement.id, { custom_spacing_cm: val })
                                                     }
                                                 }}
-                                                className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                                                className="w-full px-2 py-1 border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 rounded text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                                                 min={1}
                                             />
-                                            <span className="text-xs text-gray-500">cm</span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">cm</span>
                                         </div>
                                     </div>
 
@@ -948,8 +950,8 @@ export default function BedsPage() {
                                                 }}
                                                 disabled={!canRotate}
                                                 className={`mt-4 p-2 rounded transition-colors ${canRotate
-                                                    ? 'text-gray-600 hover:text-primary-600 hover:bg-primary-50 cursor-pointer'
-                                                    : 'text-gray-300 cursor-not-allowed'
+                                                    ? 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-dark-selected cursor-pointer'
+                                                    : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
                                                     }`}
                                                 title={canRotate ? "Swap spacing values" : "Cannot rotate - spacing won't fit"}
                                             >
@@ -975,10 +977,10 @@ export default function BedsPage() {
                                                         updatePlacement(selectedPlacement.id, { custom_row_spacing_cm: val })
                                                     }
                                                 }}
-                                                className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                                                className="w-full px-2 py-1 border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100 rounded text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                                                 min={1}
                                             />
-                                            <span className="text-xs text-gray-500">cm</span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">cm</span>
                                         </div>
                                     </div>
                                 </div>
@@ -988,7 +990,7 @@ export default function BedsPage() {
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setSelectedPlacement(null)}
-                                className="flex-1 px-4 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium"
+                                className="flex-1 px-4 py-2 rounded-xl bg-gray-100 dark:bg-dark-bg text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-dark-selected transition-colors text-sm font-medium"
                             >
                                 Close
                             </button>
@@ -997,7 +999,7 @@ export default function BedsPage() {
                                     handleDeletePlacement(selectedPlacement.id)
                                     setSelectedPlacement(null)
                                 }}
-                                className="flex-1 px-4 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-sm font-medium"
+                                className="flex-1 px-4 py-2 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors text-sm font-medium"
                             >
                                 Delete
                             </button>

@@ -33,6 +33,12 @@ export default {
                     800: '#5f382b',
                     900: '#513026',
                 },
+                dark: {
+                    bg: '#111111',
+                    surface: '#1c1c1c',
+                    selected: '#192c31',
+                    bed: '#2e231a',
+                },
             },
             fontFamily: {
                 sans: ['Inter', 'system-ui', 'sans-serif'],

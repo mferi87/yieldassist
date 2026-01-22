@@ -1,12 +1,14 @@
 import { Outlet, NavLink, useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../store/authStore'
-import { LayoutGrid, Layers, Sprout, LogOut, User, ChevronDown } from 'lucide-react'
+import { useThemeStore } from '../store/themeStore'
+import { LayoutGrid, Layers, Sprout, LogOut, User, ChevronDown, Moon, Sun } from 'lucide-react'
 import { useState } from 'react'
 
 export default function Layout() {
     const { t } = useTranslation()
     const { user, logout } = useAuthStore()
+    const { isDark, toggleTheme } = useThemeStore()
     const { gardenId } = useParams()
     const navigate = useNavigate()
     const [showUserMenu, setShowUserMenu] = useState(false)
@@ -25,14 +27,14 @@ export default function Layout() {
         : []
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-earth-50">
+        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-earth-50 dark:from-dark-bg dark:via-dark-bg dark:to-dark-bg">
             {/* Header */}
-            <header className="bg-white/80 backdrop-blur-md border-b border-primary-100 sticky top-0 z-50">
+            <header className="bg-white/80 dark:bg-dark-surface/80 backdrop-blur-md border-b border-primary-100 dark:border-gray-800 sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         {/* Logo */}
                         <NavLink to="/" className="flex items-center gap-2 group">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg group-hover:shadow-primary-200 transition-shadow">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg group-hover:shadow-primary-200 dark:group-hover:shadow-primary-900 transition-shadow">
                                 <Sprout className="w-6 h-6 text-white" />
                             </div>
                             <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent">
@@ -50,8 +52,8 @@ export default function Layout() {
                                         end={to === `/garden/${gardenId}`}
                                         className={({ isActive }) =>
                                             `flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${isActive
-                                                ? 'bg-primary-100 text-primary-700'
-                                                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                                ? 'bg-primary-100 dark:bg-dark-selected text-primary-700 dark:text-primary-400'
+                                                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-surface hover:text-gray-900 dark:hover:text-white'
                                             }`
                                         }
                                     >
@@ -66,41 +68,57 @@ export default function Layout() {
                         <div className="relative">
                             <button
                                 onClick={() => setShowUserMenu(!showUserMenu)}
-                                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
                             >
-                                <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
-                                    <User className="w-4 h-4 text-primary-600" />
+                                <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+                                    <User className="w-4 h-4 text-primary-600 dark:text-primary-400" />
                                 </div>
-                                <span className="text-sm font-medium text-gray-700">{user?.name}</span>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{user?.name}</span>
                                 <ChevronDown className="w-4 h-4 text-gray-400" />
                             </button>
 
                             {showUserMenu && (
                                 <>
                                     <div className="fixed inset-0" onClick={() => setShowUserMenu(false)} />
-                                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+                                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-dark-surface rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 py-1 z-50">
+                                        {/* Theme Toggle */}
+                                        <button
+                                            onClick={() => {
+                                                toggleTheme()
+                                            }}
+                                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-dark-bg"
+                                        >
+                                            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                                            {isDark ? 'Light Mode' : 'Dark Mode'}
+                                        </button>
+
+                                        {/* Divider */}
+                                        <div className="h-px bg-gray-100 dark:bg-gray-700 my-1"></div>
+
                                         <button
                                             onClick={handleLogout}
-                                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-dark-bg"
                                         >
                                             <LogOut className="w-4 h-4" />
                                             {t('auth.logout')}
                                         </button>
 
-                                        {/* Divider */}
-                                        <div className="h-px bg-gray-100 my-1"></div>
-
                                         {user?.is_global_admin && (
-                                            <NavLink
-                                                to="/admin"
-                                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 mb-1"
-                                                onClick={() => setShowUserMenu(false)}
-                                            >
-                                                <div className="w-4 h-4 flex items-center justify-center">
-                                                    <span className="text-xs font-bold">A</span>
-                                                </div>
-                                                Admin Dashboard
-                                            </NavLink>
+                                            <>
+                                                {/* Divider */}
+                                                <div className="h-px bg-gray-100 dark:bg-gray-700 my-1"></div>
+
+                                                <NavLink
+                                                    to="/admin"
+                                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-dark-bg mb-1"
+                                                    onClick={() => setShowUserMenu(false)}
+                                                >
+                                                    <div className="w-4 h-4 flex items-center justify-center">
+                                                        <span className="text-xs font-bold">A</span>
+                                                    </div>
+                                                    Admin Dashboard
+                                                </NavLink>
+                                            </>
                                         )}
                                     </div>
                                 </>
@@ -117,3 +135,4 @@ export default function Layout() {
         </div>
     )
 }
+

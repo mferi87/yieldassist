@@ -33,12 +33,12 @@ export default function GardensPage() {
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">{t('garden.title')}</h1>
-                    <p className="text-gray-500 mt-1">Manage and plan your gardens</p>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{t('garden.title')}</h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">Manage and plan your gardens</p>
                 </div>
                 <button
                     onClick={() => setShowCreateModal(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium hover:from-primary-600 hover:to-primary-700 shadow-lg shadow-primary-200 transition-all"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium hover:from-primary-600 hover:to-primary-700 shadow-lg shadow-primary-200 dark:shadow-primary-900 transition-all"
                 >
                     <Plus className="w-5 h-5" />
                     {t('garden.create')}
@@ -55,11 +55,11 @@ export default function GardensPage() {
             {/* Empty State */}
             {!isLoading && gardens.length === 0 && (
                 <div className="text-center py-20">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-100 mb-4">
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-100 dark:bg-primary-900 mb-4">
                         <Sprout className="w-10 h-10 text-primary-500" />
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No gardens yet</h3>
-                    <p className="text-gray-500 mb-6">{t('garden.empty')}</p>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No gardens yet</h3>
+                    <p className="text-gray-500 dark:text-gray-400 mb-6">{t('garden.empty')}</p>
                     <button
                         onClick={() => setShowCreateModal(true)}
                         className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary-500 text-white font-medium hover:bg-primary-600 transition-colors"
@@ -88,26 +88,26 @@ export default function GardensPage() {
             {showCreateModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreateModal(false)} />
-                    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+                    <div className="relative bg-white dark:bg-dark-surface rounded-2xl shadow-2xl w-full max-w-md p-6">
                         <button
                             onClick={() => setShowCreateModal(false)}
-                            className="absolute top-4 right-4 p-1 rounded-lg hover:bg-gray-100"
+                            className="absolute top-4 right-4 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-bg"
                         >
                             <X className="w-5 h-5 text-gray-400" />
                         </button>
 
-                        <h2 className="text-xl font-semibold text-gray-900 mb-6">{t('garden.create')}</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">{t('garden.create')}</h2>
 
                         <form onSubmit={handleCreate} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     {t('garden.name')}
                                 </label>
                                 <input
                                     type="text"
                                     value={newGarden.name}
                                     onChange={(e) => setNewGarden({ ...newGarden, name: e.target.value })}
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all outline-none"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-900 transition-all outline-none text-gray-900 dark:text-gray-100"
                                     placeholder="My Backyard Garden"
                                     required
                                 />
@@ -115,28 +115,28 @@ export default function GardensPage() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         {t('garden.width')}
                                     </label>
                                     <input
                                         type="number"
                                         value={newGarden.width_meters}
                                         onChange={(e) => setNewGarden({ ...newGarden, width_meters: Number(e.target.value) })}
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all outline-none"
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-900 transition-all outline-none text-gray-900 dark:text-gray-100"
                                         min={1}
                                         max={100}
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         {t('garden.height')}
                                     </label>
                                     <input
                                         type="number"
                                         value={newGarden.height_meters}
                                         onChange={(e) => setNewGarden({ ...newGarden, height_meters: Number(e.target.value) })}
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all outline-none"
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-900 transition-all outline-none text-gray-900 dark:text-gray-100"
                                         min={1}
                                         max={100}
                                         required
@@ -233,11 +233,11 @@ function GardenCard({ garden, onUpdate, onDelete }: GardenCardProps) {
 
     return (
         <>
-            <div className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-primary-200 transition-all overflow-hidden">
+            <div className="group bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-xl hover:border-primary-200 dark:hover:border-primary-700 transition-all overflow-hidden">
                 {/* Garden Preview */}
                 <div
                     onClick={() => navigate(`/garden/${garden.id}`)}
-                    className="h-40 bg-gradient-to-br from-primary-50 to-earth-50 flex items-center justify-center relative cursor-pointer"
+                    className="h-40 bg-gradient-to-br from-primary-50 to-earth-50 dark:from-dark-bg dark:to-dark-bg flex items-center justify-center relative cursor-pointer"
                 >
                     {garden.preview_image ? (
                         <img
@@ -259,7 +259,7 @@ function GardenCard({ garden, onUpdate, onDelete }: GardenCardProps) {
                     <div className="flex items-center justify-between gap-2">
                         <h3
                             onClick={() => navigate(`/garden/${garden.id}`)}
-                            className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors cursor-pointer flex-1 truncate"
+                            className="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-primary-600 transition-colors cursor-pointer flex-1 truncate"
                         >
                             {garden.name}
                         </h3>
@@ -270,14 +270,14 @@ function GardenCard({ garden, onUpdate, onDelete }: GardenCardProps) {
                                         e.stopPropagation()
                                         setShowEditModal(true)
                                     }}
-                                    className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center hover:bg-gray-100 transition-colors"
+                                    className="w-8 h-8 rounded-full bg-gray-50 dark:bg-dark-bg flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                                 >
                                     <Settings className="w-4 h-4 text-gray-400" />
                                 </button>
                             )}
                             <button
                                 onClick={() => navigate(`/garden/${garden.id}`)}
-                                className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center hover:bg-primary-100 transition-colors"
+                                className="w-8 h-8 rounded-full bg-primary-50 dark:bg-primary-900 flex items-center justify-center hover:bg-primary-100 dark:hover:bg-primary-800 transition-colors"
                             >
                                 <ArrowRight className="w-4 h-4 text-primary-500" />
                             </button>
@@ -286,12 +286,12 @@ function GardenCard({ garden, onUpdate, onDelete }: GardenCardProps) {
 
                     {/* Row 2: Size + Role Badge */}
                     <div className="mt-1 flex items-center gap-2">
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                             {garden.width_meters}m × {garden.height_meters}m
                         </p>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${garden.role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                            garden.role === 'editor' ? 'bg-blue-100 text-blue-700' :
-                                'bg-gray-100 text-gray-700'
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${garden.role === 'admin' ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' :
+                            garden.role === 'editor' ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' :
+                                'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                             }`}>
                             {garden.role}
                         </span>
@@ -303,23 +303,23 @@ function GardenCard({ garden, onUpdate, onDelete }: GardenCardProps) {
             {showEditModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowEditModal(false)} />
-                    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+                    <div className="relative bg-white dark:bg-dark-surface rounded-2xl shadow-2xl w-full max-w-md p-6">
                         <button
                             onClick={() => setShowEditModal(false)}
-                            className="absolute top-4 right-4 p-1 rounded-lg hover:bg-gray-100"
+                            className="absolute top-4 right-4 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-bg"
                         >
                             <X className="w-5 h-5 text-gray-400" />
                         </button>
 
-                        <h2 className="text-xl font-semibold text-gray-900 mb-6">Edit Garden</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Edit Garden</h2>
 
                         <div className="space-y-4">
                             {/* Preview Image */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     Preview Image
                                 </label>
-                                <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center">
+                                <div className="border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-xl p-4 text-center">
                                     {editForm.preview_image ? (
                                         <div className="relative inline-block">
                                             <img
@@ -351,41 +351,41 @@ function GardenCard({ garden, onUpdate, onDelete }: GardenCardProps) {
 
                             {/* Name */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     Garden Name
                                 </label>
                                 <input
                                     type="text"
                                     value={editForm.name}
                                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all outline-none"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-900 transition-all outline-none text-gray-900 dark:text-gray-100"
                                 />
                             </div>
 
                             {/* Dimensions */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Width (m)
                                     </label>
                                     <input
                                         type="number"
                                         value={editForm.width_meters}
                                         onChange={(e) => setEditForm({ ...editForm, width_meters: Number(e.target.value) })}
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all outline-none"
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-900 transition-all outline-none text-gray-900 dark:text-gray-100"
                                         min={1}
                                         max={100}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Height (m)
                                     </label>
                                     <input
                                         type="number"
                                         value={editForm.height_meters}
                                         onChange={(e) => setEditForm({ ...editForm, height_meters: Number(e.target.value) })}
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all outline-none"
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-900 transition-all outline-none text-gray-900 dark:text-gray-100"
                                         min={1}
                                         max={100}
                                     />
