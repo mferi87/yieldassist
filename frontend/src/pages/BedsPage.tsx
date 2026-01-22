@@ -552,15 +552,23 @@ export default function BedsPage() {
 
                                                     const emoji = getCropEmoji(placement.crop)
 
+                                                    const cropColor = getCropColor(placement.crop_id)
+                                                    const isHovered = hoveredPlacement?.id === placement.id
+
                                                     return (
                                                         <div
-                                                            className="absolute inset-0 pointer-events-none"
+                                                            className="absolute inset-0 pointer-events-none transition-all"
                                                             style={{
                                                                 width: placement.width_cells * cellSize,
                                                                 height: placement.height_cells * cellSize,
-                                                                border: `2px solid ${getCropColor(placement.crop_id)}`,
+                                                                border: `2px solid ${cropColor}`,
                                                                 borderRadius: '4px',
-                                                                zIndex: 10,
+                                                                zIndex: isHovered ? 20 : 10,
+                                                                outline: isHovered ? `2px solid ${cropColor}` : 'none',
+                                                                outlineOffset: '1px',
+                                                                boxShadow: isHovered
+                                                                    ? `0 0 0 3px ${cropColor}40, 0 0 16px ${cropColor}60`
+                                                                    : 'none',
                                                             }}
                                                         >
                                                             {/* Render each plant icon at pixel-precise position */}
@@ -731,20 +739,34 @@ export default function BedsPage() {
                             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                                 <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Planted Crops</h4>
                                 <div className="space-y-1">
-                                    {placements.map((p) => (
-                                        <div key={p.id} className="flex items-center justify-between text-sm">
-                                            <span className="text-gray-600 dark:text-gray-400">{p.crop.name}</span>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-gray-400">{calculatePlantCount(p)} plants</span>
-                                                <button
-                                                    onClick={() => handleDeletePlacement(p.id)}
-                                                    className="text-red-400 hover:text-red-600"
-                                                >
-                                                    <Trash2 className="w-3 h-3" />
-                                                </button>
+                                    {[...placements]
+                                        .sort((a, b) => a.crop.name.localeCompare(b.crop.name))
+                                        .map((p) => (
+                                            <div
+                                                key={p.id}
+                                                className={`flex items-center justify-between text-sm px-2 py-1 rounded-lg cursor-pointer transition-colors ${hoveredPlacement?.id === p.id
+                                                    ? 'bg-primary-100 dark:bg-primary-900/30'
+                                                    : 'hover:bg-gray-100 dark:hover:bg-gray-700/50'
+                                                    }`}
+                                                onMouseEnter={() => setHoveredPlacement(p)}
+                                                onMouseLeave={() => setHoveredPlacement(null)}
+                                                onClick={() => setSelectedPlacement(p)}
+                                            >
+                                                <span className="text-gray-600 dark:text-gray-400">{p.crop.name}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-gray-400">{calculatePlantCount(p)} plants</span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleDeletePlacement(p.id)
+                                                        }}
+                                                        className="text-red-400 hover:text-red-600"
+                                                    >
+                                                        <Trash2 className="w-3 h-3" />
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))}
                                 </div>
                             </div>
                         )}
