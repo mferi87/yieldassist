@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useGardenStore, type Bed } from '../store/gardenStore'
@@ -41,6 +41,49 @@ export default function OverviewPage() {
             fetchGardenPlacements(gardenId)
         }
     }, [gardenId, fetchGarden, fetchBeds, fetchGardenPlacements])
+
+    // Container ref for measuring available space
+    const containerRef = useRef<HTMLDivElement>(null)
+    const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
+
+    // Measure container size
+    useEffect(() => {
+        if (!containerRef.current) return
+
+        const observer = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                setContainerSize({
+                    width: entry.contentRect.width,
+                    height: entry.contentRect.height
+                })
+            }
+        })
+
+        observer.observe(containerRef.current)
+        return () => observer.disconnect()
+    }, [])
+
+    // Grid is 0.5m per cell (2 cells per meter)
+    const gridCols = currentGarden ? currentGarden.width_meters * 2 : 20
+    const gridRows = currentGarden ? currentGarden.height_meters * 2 : 20
+
+    // Calculate auto-fit cell size
+    const cellSize = useMemo(() => {
+        if (!containerSize.width || !containerSize.height) return 40 // Default
+
+        // Available space minus padding (32px = p-4 * 2)
+        const availableWidth = containerSize.width - 64
+        // Subtract header height (~100px) and bottom padding (~100px)
+        const availableHeight = containerSize.height - 240
+
+        // Calculate size to fit (min representation)
+        const sizeX = availableWidth / gridCols
+        const sizeY = availableHeight / gridRows
+
+        // Use the smaller dimension to ensure it fits both ways
+        // Min 10px, Max 80px
+        return Math.max(10, Math.min(80, Math.min(sizeX, sizeY)))
+    }, [containerSize, gridCols, gridRows])
 
     // Group placements by bed
     const placementsByBed = useMemo(() => {
@@ -172,14 +215,12 @@ export default function OverviewPage() {
     }
 
     // Grid is 0.5m per cell (2 cells per meter)
-    const gridCols = currentGarden.width_meters * 2
-    const gridRows = currentGarden.height_meters * 2
-    const cellSize = Math.min(40, Math.floor(800 / Math.max(gridCols, gridRows)))
+
 
     return (
-        <div className="relative">
+        <div ref={containerRef} className="h-full overflow-hidden w-full relative px-4 sm:px-6 lg:px-8 py-8 flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-6 shrink-0">
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => navigate('/')}
@@ -219,7 +260,7 @@ export default function OverviewPage() {
                 </button>
             </div>
 
-            <div className="flex gap-6">
+            <div className="flex gap-6 h-full overflow-hidden">
                 {/* Left Panel - Bed List (Edit Mode) */}
                 {showBedPanel && (
                     <div className="w-64 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 shrink-0">
@@ -296,7 +337,7 @@ export default function OverviewPage() {
                 )}
 
                 {/* Garden Grid */}
-                <div className="flex-1 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 overflow-auto">
+                <div className="flex-1 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 overflow-auto flex flex-col justify-center">
                     <div
                         className="relative mx-auto"
                         style={{
@@ -455,8 +496,8 @@ export default function OverviewPage() {
                             return (
                                 <div
                                     className={`absolute border-2 border-dashed rounded-lg pointer-events-none z-50 ${dragHasCollision
-                                            ? 'bg-red-300/40 border-red-600 dark:border-red-400'
-                                            : 'bg-primary-300/40 border-primary-600 dark:border-primary-400'
+                                        ? 'bg-red-300/40 border-red-600 dark:border-red-400'
+                                        : 'bg-primary-300/40 border-primary-600 dark:border-primary-400'
                                         }`}
                                     style={{
                                         left: dragPreviewPos.x * cellSize,

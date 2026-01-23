@@ -29,7 +29,7 @@ export default function GardensPage() {
     }
 
     return (
-        <div>
+        <div className="h-full overflow-y-auto w-full px-4 sm:px-6 lg:px-8 py-8">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div>

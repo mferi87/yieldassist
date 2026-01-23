@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useGardenStore, type Bed } from '../store/gardenStore'
 import { useCropStore, type Crop, type CropPlacement } from '../store/cropStore'
 import { useThemeStore } from '../store/themeStore'
-import { Loader2, Plus, Edit, Eye, Trash2, Settings, RotateCw } from 'lucide-react'
+import { Loader2, Plus, Edit, Eye, Trash2, Settings, RotateCw, ZoomIn, ZoomOut, Maximize } from 'lucide-react'
 
 // Color palette for crops
 const CROP_COLORS = [
@@ -46,7 +46,9 @@ export default function BedsPage() {
     const [hoveredPlacement, setHoveredPlacement] = useState<CropPlacement | null>(null)
     const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null)
     const [previewCell, setPreviewCell] = useState<{ x: number; y: number } | null>(null)
+    const [zoomLevel, setZoomLevel] = useState(1)
     const gridRef = useRef<HTMLDivElement>(null)
+    const gridContainerRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         if (gardenId) {
@@ -97,7 +99,38 @@ export default function BedsPage() {
         }
     }, [selectedCrop])
 
-    const cellSize = 25 // 25cm per cell, 40px for visibility
+    const handleFitToScreen = () => {
+        if (!selectedBed || !gridContainerRef.current) return
+
+        const containerWidth = gridContainerRef.current.clientWidth - 64 // 32px padding on each side
+        const containerHeight = window.innerHeight - 300 // Approx height available
+
+        const bedWidthPx = selectedBed.width_cells * 25
+        const bedHeightPx = selectedBed.height_cells * 25
+
+        const zoomX = containerWidth / bedWidthPx
+        const zoomY = containerHeight / bedHeightPx
+
+        // Calculate the zoom needed to fit
+        const fitZoom = Math.min(zoomX, zoomY)
+
+        // Default to 1.0 (100%), but zoom out if the bed is too big (fitZoom < 1.0)
+        // User can manually zoom in further if they want
+        const newZoom = Math.min(fitZoom, 1.0)
+
+        setZoomLevel(Math.max(0.2, newZoom))
+    }
+
+    // Auto-fit when bed or edit mode changes (as layout/available space changes)
+    useEffect(() => {
+        if (selectedBed) {
+            // Small delay to ensure container is rendered with new layout
+            setTimeout(handleFitToScreen, 100)
+        }
+    }, [selectedBed, editMode])
+
+    const baseCellSize = 25
+    const cellSize = baseCellSize * zoomLevel // Scaled cell size
     const gridWidth = selectedBed?.width_cells || 4
     const gridHeight = selectedBed?.height_cells || 8
 
@@ -333,7 +366,7 @@ export default function BedsPage() {
     }
 
     return (
-        <div>
+        <div className="h-full flex flex-col p-4 sm:p-6 lg:p-8 overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div>
@@ -375,9 +408,9 @@ export default function BedsPage() {
                 </div>
             </div>
 
-            <div className="flex gap-6">
+            <div className="flex-1 min-h-0 flex gap-6">
                 {/* Bed Selector */}
-                <div className="w-64 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 shrink-0">
+                <div className="w-64 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 shrink-0 overflow-y-auto">
                     <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Select Bed</h3>
 
                     {beds.length === 0 ? (
@@ -406,21 +439,92 @@ export default function BedsPage() {
                 </div>
 
                 {/* Bed Grid */}
-                <div className="flex-1 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+                <div
+                    ref={gridContainerRef}
+                    className="flex-1 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 overflow-hidden flex flex-col"
+                    onWheel={(e) => {
+                        if (!selectedBed || !gridContainerRef.current) return
+
+                        // Prevent default page scroll
+                        e.preventDefault()
+
+                        const container = gridContainerRef.current
+                        const rect = container.getBoundingClientRect()
+
+                        // Mouse position relative to the container
+                        const mouseX = e.clientX - rect.left
+                        const mouseY = e.clientY - rect.top
+
+                        // Calculate current point under mouse in "unzoomed" 1.0 coordinate space
+                        // (scroll position + mouse offset) / current zoom
+                        const pointX = (container.scrollLeft + mouseX) / zoomLevel
+                        const pointY = (container.scrollTop + mouseY) / zoomLevel
+
+                        // Calculate new zoom
+                        const delta = -Math.sign(e.deltaY) * 0.1
+                        const newZoom = Math.min(Math.max(0.2, zoomLevel + delta), 3.0)
+
+                        setZoomLevel(newZoom)
+
+                        // Adjust scroll to keep the point under mouse stationary
+                        // New scroll = (point * newZoom) - mouse offset
+                        // We use requestAnimationFrame or setTimeout to wait for the zoom render to apply the size change
+                        // But React state updates might be batched. For immediate feel we can calculate this.
+                        // However, setting scrollTop/Left immediately after setZoomLevel might happen before the DOM layout updates.
+                        // We'll use a flushSync or just rely on the fact that we can calculate the target scroll and set it.
+                        // Actually, updating scroll needs to happen after layout update.
+
+                        requestAnimationFrame(() => {
+                            if (gridContainerRef.current) {
+                                gridContainerRef.current.scrollLeft = pointX * newZoom - mouseX
+                                gridContainerRef.current.scrollTop = pointY * newZoom - mouseY
+                            }
+                        })
+                    }}
+                >
                     {selectedBed ? (
                         <>
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="font-semibold text-gray-900 dark:text-gray-100">{selectedBed.name}</h3>
-                                <span className="text-sm text-gray-500 dark:text-gray-400">
-                                    Each cell = 25cm × 25cm
-                                </span>
+                                <div>
+                                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">{selectedBed.name}</h3>
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                                        Each cell = 25cm × 25cm
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2 bg-gray-100 dark:bg-dark-bg rounded-lg p-1">
+                                    <button
+                                        onClick={() => setZoomLevel(z => Math.max(0.2, z - 0.1))}
+                                        className="p-1.5 hover:bg-white dark:hover:bg-dark-surface rounded-md text-gray-600 dark:text-gray-300 transition-colors"
+                                        title="Zoom Out"
+                                    >
+                                        <ZoomOut className="w-4 h-4" />
+                                    </button>
+                                    <span className="text-xs font-medium w-12 text-center text-gray-600 dark:text-gray-300">
+                                        {Math.round(zoomLevel * 100)}%
+                                    </span>
+                                    <button
+                                        onClick={() => setZoomLevel(z => Math.min(3.0, z + 0.1))}
+                                        className="p-1.5 hover:bg-white dark:hover:bg-dark-surface rounded-md text-gray-600 dark:text-gray-300 transition-colors"
+                                        title="Zoom In"
+                                    >
+                                        <ZoomIn className="w-4 h-4" />
+                                    </button>
+                                    <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
+                                    <button
+                                        onClick={handleFitToScreen}
+                                        className="p-1.5 hover:bg-white dark:hover:bg-dark-surface rounded-md text-gray-600 dark:text-gray-300 transition-colors"
+                                        title="Fit to Screen"
+                                    >
+                                        <Maximize className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="py-4 px-2">
+                            <div className="flex-1 overflow-auto flex p-4 bg-gray-50/50 dark:bg-dark-bg/30 rounded-xl relative">
                                 <div
                                     ref={gridRef}
                                     onContextMenu={(e) => e.preventDefault()}
-                                    className="mx-auto border border-gray-200 dark:border-gray-600 rounded-lg select-none"
+                                    className="m-auto border border-gray-200 dark:border-gray-600 rounded-lg select-none"
                                     style={{
                                         width: gridWidth * cellSize,
                                         height: gridHeight * cellSize,
@@ -534,19 +638,22 @@ export default function BedsPage() {
                                                     const iconsY = Math.min(plantsY, maxIconsY)
 
                                                     // Calculate spacing for rendered icons (distribute evenly across area)
-                                                    const iconSpacingX = widthCm / iconsX
-                                                    const iconSpacingY = heightCm / iconsY
+                                                    // We use the scaled container dimensions for spacing
+                                                    const containerWidth = placement.width_cells * cellSize
+                                                    const containerHeight = placement.height_cells * cellSize
+                                                    const iconSpacingX = containerWidth / iconsX
+                                                    const iconSpacingY = containerHeight / iconsY
 
-                                                    // Generate icon positions (capped for rendering, not actual plant count)
+                                                    // Generate icon positions
                                                     const plants: { x: number; y: number }[] = []
 
                                                     for (let row = 0; row < iconsY; row++) {
                                                         for (let col = 0; col < iconsX; col++) {
                                                             // Center each icon in its spacing zone
-                                                            const xCm = col * iconSpacingX + iconSpacingX / 2
-                                                            const yCm = row * iconSpacingY + iconSpacingY / 2
+                                                            const xPos = col * iconSpacingX + iconSpacingX / 2
+                                                            const yPos = row * iconSpacingY + iconSpacingY / 2
 
-                                                            plants.push({ x: xCm, y: yCm })
+                                                            plants.push({ x: xPos, y: yPos })
                                                         }
                                                     }
 
@@ -554,13 +661,14 @@ export default function BedsPage() {
 
                                                     const cropColor = getCropColor(placement.crop_id)
                                                     const isHovered = hoveredPlacement?.id === placement.id
+                                                    const iconSize = Math.max(12, 20 * zoomLevel) // Scale icon, min 12px
 
                                                     return (
                                                         <div
                                                             className="absolute inset-0 pointer-events-none transition-all"
                                                             style={{
-                                                                width: placement.width_cells * cellSize,
-                                                                height: placement.height_cells * cellSize,
+                                                                width: containerWidth, // redundant but safe
+                                                                height: containerHeight,
                                                                 border: `2px solid ${cropColor}`,
                                                                 borderRadius: '4px',
                                                                 zIndex: isHovered ? 20 : 10,
@@ -580,14 +688,14 @@ export default function BedsPage() {
                                                                         left: pos.x,
                                                                         top: pos.y,
                                                                         transform: 'translate(-50%, -50%)',
-                                                                        width: 20,
-                                                                        height: 20,
+                                                                        width: iconSize,
+                                                                        height: iconSize,
                                                                     }}
                                                                 >
                                                                     {isBase64Image(emoji) ? (
-                                                                        <img src={emoji} alt={placement.crop.name} className="w-5 h-5 object-contain" />
+                                                                        <img src={emoji} alt={placement.crop.name} style={{ width: iconSize, height: iconSize }} className="object-contain" />
                                                                     ) : (
-                                                                        <span className="text-xl leading-none">{emoji}</span>
+                                                                        <span style={{ fontSize: iconSize, lineHeight: 1 }}>{emoji}</span>
                                                                     )}
                                                                 </div>
                                                             ))}
@@ -622,12 +730,12 @@ export default function BedsPage() {
 
                 {/* Right Panel (Edit Mode) */}
                 {editMode === 'crops' && (
-                    <div className="w-72 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 shrink-0">
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Crop Library</h3>
+                    <div className="w-72 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 shrink-0 flex flex-col h-full overflow-hidden">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4 shrink-0">Crop Library</h3>
 
                         {/* Spacing Settings */}
                         {selectedCrop && (
-                            <div className="mb-4 p-3 rounded-xl bg-gray-50 dark:bg-dark-bg">
+                            <div className="mb-4 p-3 rounded-xl bg-gray-50 dark:bg-dark-bg shrink-0">
                                 <div className="flex items-center gap-2 mb-3">
                                     <Settings className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Plant Spacing</span>
@@ -703,7 +811,7 @@ export default function BedsPage() {
                             </div>
                         )}
 
-                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                        <div className="space-y-2 flex-1 overflow-y-auto min-h-0">
                             {crops.map((crop) => (
                                 <div
                                     key={crop.id}

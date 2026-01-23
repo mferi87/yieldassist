@@ -27,10 +27,10 @@ export default function Layout() {
         : []
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-earth-50 dark:from-dark-bg dark:via-dark-bg dark:to-dark-bg">
+        <div className="h-screen overflow-hidden flex flex-col bg-gradient-to-br from-primary-50 via-white to-earth-50 dark:from-dark-bg dark:via-dark-bg dark:to-dark-bg">
             {/* Header */}
-            <header className="bg-white/80 dark:bg-dark-surface/80 backdrop-blur-md border-b border-primary-100 dark:border-gray-800 sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <header className="bg-white/80 dark:bg-dark-surface/80 backdrop-blur-md border-b border-primary-100 dark:border-gray-800 sticky top-0 z-50 shrink-0">
+                <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         {/* Logo */}
                         <NavLink to="/" className="flex items-center gap-2 group">
@@ -129,7 +129,7 @@ export default function Layout() {
             </header>
 
             {/* Main Content */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main className="flex-1 w-full min-h-0 overflow-hidden flex flex-col">
                 <Outlet />
             </main>
         </div>
