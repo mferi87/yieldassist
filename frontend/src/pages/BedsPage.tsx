@@ -102,14 +102,23 @@ export default function BedsPage() {
     const handleFitToScreen = () => {
         if (!selectedBed || !gridContainerRef.current) return
 
-        const containerWidth = gridContainerRef.current.clientWidth - 64 // 32px padding on each side
-        const containerHeight = window.innerHeight - 300 // Approx height available
+        const containerRect = gridContainerRef.current.getBoundingClientRect()
+
+        // Account for padding: gridContainerRef has p-6 (24px each side)
+        // Plus the inner overflow div has p-4 (16px each side)
+        // Plus the header with zoom controls (approximately 60px height + mb-4 which is 16px)
+        const horizontalPadding = 24 + 16 // p-6 + p-4 on each side = 40px per side
+        const verticalPadding = 24 + 16 // p-6 top/bottom + p-4 top/bottom
+        const headerHeight = 60 + 16 // header + margin-bottom
+
+        const availableWidth = containerRect.width - (horizontalPadding * 2)
+        const availableHeight = containerRect.height - (verticalPadding * 2) - headerHeight
 
         const bedWidthPx = selectedBed.width_cells * 25
         const bedHeightPx = selectedBed.height_cells * 25
 
-        const zoomX = containerWidth / bedWidthPx
-        const zoomY = containerHeight / bedHeightPx
+        const zoomX = availableWidth / bedWidthPx
+        const zoomY = availableHeight / bedHeightPx
 
         // Calculate the zoom needed to fit
         const fitZoom = Math.min(zoomX, zoomY)
