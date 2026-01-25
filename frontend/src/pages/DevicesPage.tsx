@@ -17,6 +17,7 @@ interface Valve {
     id: string
     device_id: string
     is_open: boolean
+    target_is_open: boolean | null
     last_activated: string | null
 }
 
@@ -183,8 +184,8 @@ export default function DevicesPage() {
                                             <button
                                                 onClick={() => handleToggleValve(valve.id)}
                                                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${valve.is_open
-                                                        ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                                                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200'
+                                                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200'
                                                     }`}
                                             >
                                                 {valve.is_open ? 'Turn Off' : 'Turn On'}

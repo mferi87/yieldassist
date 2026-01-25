@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.device import Valve
+from app.models.command import DeviceCommand, CommandStatus
 from app.models.user import User
 from app.schemas.valve import ValveResponse, ValveUpdate
 
@@ -32,17 +33,24 @@ async def toggle_valve(
          raise HTTPException(status_code=403, detail="Not authorized")
     # Also check zone if hub is None (legacy)? but new valves have hub.
 
-    valve.target_is_open = not valve.is_open # Toggle desire based on current state? Or current desire?
-    # Logic: If I want to toggle, I invert the CURRENT state and set that as TARGET.
-    # If the user clicks toggle while target is pending?
-    # Simpler: If target is set, invert target. If not, invert current.
-    current_target = valve.target_is_open if valve.target_is_open is not None else valve.is_open
-    valve.target_is_open = not current_target
+    # Create Command
+    new_state = not valve.is_open
     
-    # We do NOT update is_open immediately. We wait for the device to report back.
-    # But for UI responsiveness, we might want to return the 'target' state?
-    # The UI should show "Pending" or the target state.
+    # Check if there is already a pending command?
+    # For now, just queue new one.
+    
+    cmd = DeviceCommand(
+        device_id=valve.device_id,
+        command="SET_VALVE",
+        payload={"is_open": new_state},
+        status=CommandStatus.PENDING
+    )
+    db.add(cmd)
+    
+    # Optimistically update target for UI? 
+    # Or rely on command? 
+    # Let's keep target_is_open for easy UI state reflection if we want.
+    valve.target_is_open = new_state
     
     db.commit()
-    db.refresh(valve)
     return valve

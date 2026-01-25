@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.device import Hub, Sensor, SensorType, Valve
+from app.models.command import DeviceCommand, CommandStatus
 from app.models.user import User
 from app.schemas.hub import HubCreate, HubResponse, HubApproval, HubCheckLimit, HubApiKeyResponse
 from pydantic import BaseModel
@@ -217,29 +218,52 @@ async def receive_hub_data(
 
     db.commit()
     
-    # Generate sync commands
+    db.commit()
+    
+    # Process Command Queue
     sync_commands = {}
     
-    for valve_data in payload.valves:
-        target_device_id = f"{hub.device_id}:{valve_data.valve_id}"
-        valve = db.query(Valve).filter(Valve.device_id == target_device_id).first()
+    # Fetch active commands for this hub (PENDING or SENT)
+    active_commands = db.query(DeviceCommand).filter(
+        DeviceCommand.device_id.like(f"{hub.device_id}:%"),
+        DeviceCommand.status.in_([CommandStatus.PENDING, CommandStatus.SENT])
+    ).all()
+    
+    for cmd in active_commands:
+        target_valve = db.query(Valve).filter(Valve.device_id == cmd.device_id).first()
         
-        if valve and valve.target_is_open is not None:
-            # If target differs from reported, send command
-            if valve.target_is_open != valve_data.is_open:
-                # Add to sync commands. We need a structure for this.
-                if "valves" not in sync_commands:
-                    sync_commands["valves"] = []
-                sync_commands["valves"].append({
-                    "valve_id": valve_data.valve_id,
-                    "is_open": valve.target_is_open
-                })
-            else:
-                # State matches target, clear target
-                valve.target_is_open = None
-                db.add(valve)
-                db.commit()
+        if target_valve:
+            desired_state = cmd.payload.get("is_open")
+            # Check completion (if reported state matches desired state)
+            if desired_state is not None and target_valve.is_open == desired_state:
+                cmd.status = CommandStatus.COMPLETED
+                cmd.completed_at = datetime.utcnow()
+                
+                # Also clear target_is_open on valve if it matches command
+                if target_valve.target_is_open == desired_state:
+                     target_valve.target_is_open = None
+                
+                db.add(cmd)
+                continue
 
+        # If we are here, command is not completed. Send it.
+        if cmd.status == CommandStatus.PENDING:
+            cmd.status = CommandStatus.SENT
+            cmd.sent_at = datetime.utcnow()
+            db.add(cmd)
+        
+        # Add to sync payload
+        valve_local_id = cmd.device_id.split(":")[-1]
+        
+        if "valves" not in sync_commands:
+            sync_commands["valves"] = []
+            
+        sync_commands["valves"].append({
+            "valve_id": valve_local_id,
+            "is_open": cmd.payload.get("is_open")
+        })
+
+    db.commit()
     return {"status": "ok", "sync": sync_commands}
 
 @router.delete("/{hub_id}", status_code=status.HTTP_204_NO_CONTENT)
