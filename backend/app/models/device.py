@@ -7,6 +7,29 @@ from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 
+
+class Hub(Base):
+    __tablename__ = "hubs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    device_id = Column(String, unique=True, nullable=False)
+    name = Column(String, nullable=True)
+    api_key = Column(String, unique=True, nullable=True)
+    is_approved = Column(Boolean, default=False)
+    last_seen = Column(DateTime, nullable=True)
+    
+    # User relationship (Owner)
+    # The email provided during setup will link to a user.
+    # User relationship (Owner)
+    # The email provided during setup will link to a user.
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    user = relationship("User", back_populates="hubs")
+
+    # Relationships
+    sensors = relationship("Sensor", back_populates="hub")
+    valves = relationship("Valve", back_populates="hub")
+
+
 class SensorType(str, PyEnum):
     SOIL_MOISTURE = "soil_moisture"
     TEMPERATURE = "temperature"
@@ -18,7 +41,8 @@ class Sensor(Base):
     __tablename__ = "sensors"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    zone_id = Column(UUID(as_uuid=True), ForeignKey("zones.id"), nullable=False)
+    zone_id = Column(UUID(as_uuid=True), ForeignKey("zones.id"), nullable=True) # Changed to nullable
+    hub_id = Column(UUID(as_uuid=True), ForeignKey("hubs.id"), nullable=True)   # Added hub link
     device_id = Column(String, nullable=False)
     sensor_type = Column(Enum(SensorType), nullable=False)
     last_reading = Column(JSON, default=dict)
@@ -26,16 +50,20 @@ class Sensor(Base):
     
     # Relationships
     zone = relationship("Zone", back_populates="sensors")
+    hub = relationship("Hub", back_populates="sensors")
 
 
 class Valve(Base):
     __tablename__ = "valves"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    zone_id = Column(UUID(as_uuid=True), ForeignKey("zones.id"), nullable=False)
+    zone_id = Column(UUID(as_uuid=True), ForeignKey("zones.id"), nullable=True) # Changed to Optional
+    hub_id = Column(UUID(as_uuid=True), ForeignKey("hubs.id"), nullable=True)   # Added hub link
     device_id = Column(String, nullable=False)
     is_open = Column(Boolean, default=False)
+    target_is_open = Column(Boolean, nullable=True) # Desired state
     last_activated = Column(DateTime, nullable=True)
     
     # Relationships
     zone = relationship("Zone", back_populates="valves")
+    hub = relationship("Hub", back_populates="valves")

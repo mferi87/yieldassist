@@ -19,3 +19,5 @@ class User(Base):
     # Relationships
     garden_memberships = relationship("GardenMember", back_populates="user")
     created_crops = relationship("Crop", back_populates="created_by_user")
+    hubs = relationship("Hub", back_populates="user")
+

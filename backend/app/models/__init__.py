@@ -3,7 +3,7 @@ from app.models.user import User
 from app.models.garden import Garden, GardenMember, MemberRole
 from app.models.bed import Bed, Zone
 from app.models.crop import Crop, CropPlacement, CropStatus
-from app.models.device import Sensor, Valve, SensorType
+from app.models.device import Sensor, Valve, SensorType, Hub
 
 __all__ = [
     "User",
@@ -18,4 +18,5 @@ __all__ = [
     "Sensor",
     "Valve",
     "SensorType",
+    "Hub",
 ]

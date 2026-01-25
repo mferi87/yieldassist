@@ -8,10 +8,13 @@ import OverviewPage from './pages/OverviewPage'
 import BedsPage from './pages/BedsPage'
 import CropsPage from './pages/CropsPage'
 import AdminPage from './pages/AdminPage'
+import DevicesPage from './pages/DevicesPage'
 
-function PrivateRoute({ children }: { children: React.ReactNode }) {
+import { Outlet } from 'react-router-dom'
+
+function ProtectedRoute() {
     const { isAuthenticated } = useAuthStore()
-    return isAuthenticated ? <>{children}</> : <Navigate to="/login" />
+    return isAuthenticated ? <Outlet /> : <Navigate to="/login" />
 }
 
 function App() {
@@ -21,17 +24,16 @@ function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route
                 path="/"
-                element={
-                    <PrivateRoute>
-                        <Layout />
-                    </PrivateRoute>
-                }
+                element={<Layout />}
             >
-                <Route index element={<GardensPage />} />
-                <Route path="admin" element={<AdminPage />} />
-                <Route path="garden/:gardenId" element={<OverviewPage />} />
-                <Route path="garden/:gardenId/beds" element={<BedsPage />} />
-                <Route path="garden/:gardenId/crops" element={<CropsPage />} />
+                <Route element={<ProtectedRoute />}>
+                    <Route index element={<GardensPage />} />
+                    <Route path="admin" element={<AdminPage />} />
+                    <Route path="devices" element={<DevicesPage />} />
+                    <Route path="garden/:gardenId" element={<OverviewPage />} />
+                    <Route path="garden/:gardenId/beds" element={<BedsPage />} />
+                    <Route path="garden/:gardenId/crops" element={<CropsPage />} />
+                </Route>
             </Route>
         </Routes>
     )
