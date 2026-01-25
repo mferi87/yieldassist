@@ -26,13 +26,18 @@ export default function BedsPage() {
     const { t } = useTranslation()
     const { gardenId } = useParams()
     const [searchParams] = useSearchParams()
-    const { currentGarden, beds, fetchGarden, fetchBeds, isLoading } = useGardenStore()
+    const { currentGarden, beds, zones, fetchGarden, fetchBeds, fetchZones, createZone, updateZone, deleteZone, isLoading } = useGardenStore()
     const { crops, placements, fetchCrops, fetchPlacements, createPlacement, deletePlacement, updatePlacement } = useCropStore()
     const { isDark } = useThemeStore()
     const [selectedBed, setSelectedBed] = useState<Bed | null>(null)
     const [editMode, setEditMode] = useState<'view' | 'crops' | 'zones'>('view')
     const [selectedCrop, setSelectedCrop] = useState<Crop | null>(null)
     const [selectedPlacement, setSelectedPlacement] = useState<CropPlacement | null>(null)
+
+    // Zone editor state
+    const [zoneSelectionMode, setZoneSelectionMode] = useState(false)
+    const [currentZone, setCurrentZone] = useState<{ id?: string; name: string; color: string } | null>(null)
+    const [selectedPlacements, setSelectedPlacements] = useState<Set<string>>(new Set())
 
     // Local state for editing spacing in popup
     const [editSpacing, setEditSpacing] = useState<string>('')
@@ -81,8 +86,9 @@ export default function BedsPage() {
     useEffect(() => {
         if (selectedBed) {
             fetchPlacements(selectedBed.id)
+            fetchZones(selectedBed.id)
         }
-    }, [selectedBed, fetchPlacements])
+    }, [selectedBed, fetchPlacements, fetchZones])
 
     // Sync editing state when selectedPlacement changes
     useEffect(() => {
@@ -566,12 +572,74 @@ export default function BedsPage() {
                                         // Determine background color
                                         let bgColor = undefined
                                         if (placement) {
-                                            bgColor = `${getCropColor(placement.crop_id)}30`
+                                            if (zoneSelectionMode && currentZone) {
+                                                // In selection mode
+                                                if (selectedPlacements.has(placement.id)) {
+                                                    // Selected for this zone: show zone color
+                                                    bgColor = `${currentZone.color}60` // 60 = ~37% opacity
+                                                } else {
+                                                    // Not selected: show dimmed original color
+                                                    bgColor = `${getCropColor(placement.crop_id)}20`
+                                                }
+                                            } else if (editMode === 'zones') {
+                                                // Zone view mode: show assigned zone color if any
+                                                const assignedZone = zones.find(z => z.id === placement.zone_id)
+                                                if (assignedZone) {
+                                                    bgColor = `${assignedZone.color}40`
+                                                } else {
+                                                    bgColor = `${getCropColor(placement.crop_id)}30`
+                                                }
+                                            } else {
+                                                // Normal view
+                                                bgColor = `${getCropColor(placement.crop_id)}30`
+                                            }
                                         } else if (previewStatus === 'valid') {
                                             bgColor = 'rgba(34, 197, 94, 0.3)' // green
                                         } else if (previewStatus === 'invalid') {
                                             bgColor = 'rgba(239, 68, 68, 0.3)' // red
                                         }
+
+                                        // Check neighbors for same placement to remove internal borders
+                                        const topNeighbor = y > 0 ? getPlacementAt(x, y - 1) : null
+                                        const bottomNeighbor = y < gridHeight - 1 ? getPlacementAt(x, y + 1) : null
+                                        const leftNeighbor = x > 0 ? getPlacementAt(x - 1, y) : null
+                                        const rightNeighbor = x < gridWidth - 1 ? getPlacementAt(x + 1, y) : null
+
+                                        // Determine borders
+                                        // For placements: 
+                                        // - Hide internal borders (even meter lines!)
+                                        // - Show external borders with CROP color (planting area color)
+                                        // For empty cells:
+                                        // - Show standard grid lines
+
+                                        const isSameAsTop = placement && topNeighbor && topNeighbor.id === placement.id
+                                        const isSameAsBottom = placement && bottomNeighbor && bottomNeighbor.id === placement.id
+                                        const isSameAsLeft = placement && leftNeighbor && leftNeighbor.id === placement.id
+                                        const isSameAsRight = placement && rightNeighbor && rightNeighbor.id === placement.id
+
+                                        const meterColorDark = '#444'
+                                        const meterColorLight = '#9ca3af'
+                                        const gridColorDark = '#333'
+                                        const gridColorLight = '#e5e7eb'
+
+                                        const placementBorderColor = placement ? getCropColor(placement.crop_id) : null
+
+                                        // Helper to determine border style
+                                        const getBorderStyle = (isMeterLine: boolean, isEdge: boolean) => {
+                                            if (placement) {
+                                                if (isEdge) return `2px solid ${placementBorderColor}` // Bold outer border
+                                                return 'none' // Hide internal borders
+                                            }
+                                            // Empty cell logic
+                                            return isMeterLine
+                                                ? `1px solid ${isDark ? meterColorDark : meterColorLight}`
+                                                : `1px solid ${isDark ? gridColorDark : gridColorLight}`
+                                        }
+
+                                        const borderTop = getBorderStyle(isTopMeterLine, !isSameAsTop)
+                                        const borderBottom = getBorderStyle(isBottomMeterLine, !isSameAsBottom)
+                                        const borderLeft = getBorderStyle(isLeftMeterLine, !isSameAsLeft)
+                                        const borderRight = getBorderStyle(isRightMeterLine, !isSameAsRight)
 
                                         return (
                                             <div
@@ -579,19 +647,22 @@ export default function BedsPage() {
                                                 className={`flex items-center justify-center text-lg transition-colors relative group ${editMode === 'crops' && selectedCrop && !placement
                                                     ? 'cursor-crosshair'
                                                     : placement && editMode === 'crops' ? 'cursor-pointer' : ''
-                                                    } ${isDrawSelection && selectedCrop ? 'ring-2 ring-primary-400 ring-inset' : ''}`}
+                                                    } ${isDrawSelection && selectedCrop ? 'ring-2 ring-primary-400 ring-inset' : ''} 
+                                                    ${zoneSelectionMode && placement ? 'cursor-pointer hover:ring-2 hover:ring-primary-400 hover:ring-inset' : ''}
+                                                    `}
                                                 style={{
                                                     backgroundColor: bgColor,
-                                                    borderTop: isTopMeterLine ? (isDark ? '1px solid #444' : '1px solid #9ca3af') : (isDark ? '1px solid #333' : '1px solid #e5e7eb'),
-                                                    borderLeft: isLeftMeterLine ? (isDark ? '1px solid #444' : '1px solid #9ca3af') : (isDark ? '1px solid #333' : '1px solid #e5e7eb'),
-                                                    borderRight: isRightMeterLine ? (isDark ? '1px solid #444' : '1px solid #9ca3af') : (isDark ? '1px solid #333' : '1px solid #e5e7eb'),
-                                                    borderBottom: isBottomMeterLine ? (isDark ? '1px solid #444' : '1px solid #9ca3af') : (isDark ? '1px solid #333' : '1px solid #e5e7eb'),
+                                                    borderTop: !isSameAsTop ? borderTop : 'none',
+                                                    borderLeft: !isSameAsLeft ? borderLeft : 'none',
+                                                    borderRight: !isSameAsRight ? borderRight : 'none',
+                                                    borderBottom: !isSameAsBottom ? borderBottom : 'none',
                                                 }}
                                                 onMouseDown={(e) => {
                                                     if (placement && editMode === 'crops') {
                                                         e.stopPropagation()
                                                         return
                                                     }
+                                                    if (zoneSelectionMode) return // Handle in onClick
                                                     handleMouseDown(e, x, y)
                                                 }}
                                                 onMouseEnter={() => {
@@ -612,6 +683,20 @@ export default function BedsPage() {
                                                 }}
                                                 onMouseUp={handleMouseUp}
                                                 onClick={(e) => {
+                                                    if (zoneSelectionMode && placement) {
+                                                        e.stopPropagation()
+                                                        setSelectedPlacements(prev => {
+                                                            const next = new Set(prev)
+                                                            if (next.has(placement.id)) {
+                                                                next.delete(placement.id)
+                                                            } else {
+                                                                next.add(placement.id)
+                                                            }
+                                                            return next
+                                                        })
+                                                        return
+                                                    }
+
                                                     if (placement && editMode === 'crops' && !isDrawing) {
                                                         e.stopPropagation()
                                                         setSelectedPlacement(placement)
@@ -890,16 +975,200 @@ export default function BedsPage() {
                     </div>
                 )}
 
-                {editMode === 'zones' && (
-                    <div className="w-72 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 shrink-0">
+                {editMode === 'zones' && selectedBed && (
+                    <div className="w-72 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 shrink-0 flex flex-col">
                         <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Zone Editor</h3>
-                        <button className="w-full flex items-center gap-2 p-3 rounded-xl bg-primary-50 dark:bg-dark-selected text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-dark-bg transition-colors">
-                            <Plus className="w-4 h-4" />
-                            New Zone
-                        </button>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
-                            Zones group cells for sensor and irrigation control.
-                        </p>
+
+                        {!zoneSelectionMode ? (
+                            <>
+                                {/* Zone List Mode */}
+                                <button
+                                    onClick={() => {
+                                        setCurrentZone({ name: '', color: '#4CAF50' })
+                                        setZoneSelectionMode(true)
+                                        setSelectedPlacements(new Set())
+                                    }}
+                                    className="w-full flex items-center gap-2 p-3 rounded-xl bg-primary-50 dark:bg-dark-selected text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-dark-bg transition-colors mb-4"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    New Zone
+                                </button>
+
+                                {zones.length === 0 ? (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-8">
+                                        No zones created yet. Click "New Zone" to create one.
+                                    </p>
+                                ) : (
+                                    <div className="space-y-2 flex-1 overflow-y-auto">
+                                        {zones.map((zone) => {
+                                            const zonePlacements = placements.filter(p => p.zone_id === zone.id)
+                                            return (
+                                                <div
+                                                    key={zone.id}
+                                                    className="p-3 rounded-xl bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700"
+                                                >
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div
+                                                                className="w-4 h-4 rounded-full"
+                                                                style={{ backgroundColor: zone.color }}
+                                                            />
+                                                            <span className="font-medium text-gray-900 dark:text-gray-100">{zone.name}</span>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => deleteZone(zone.id)}
+                                                            className="text-red-400 hover:text-red-600"
+                                                        >
+                                                            <Trash2 className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                        {zonePlacements.length} planted area{zonePlacements.length !== 1 ? 's' : ''}
+                                                    </p>
+                                                    <button
+                                                        onClick={() => {
+                                                            setCurrentZone({ id: zone.id, name: zone.name, color: zone.color })
+                                                            setZoneSelectionMode(true)
+                                                            setSelectedPlacements(new Set(zonePlacements.map(p => p.id)))
+                                                        }}
+                                                        className="mt-2 text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                                                    >
+                                                        Edit selections
+                                                    </button>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )}
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
+                                    Zones group planted areas for sensor and irrigation control.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                {/* Selection Mode */}
+                                <div className="mb-4 p-3 rounded-xl bg-primary-50 dark:bg-primary-900/30">
+                                    <p className="text-sm font-medium text-primary-900 dark:text-primary-100 mb-1">
+                                        {currentZone?.id ? 'Edit Zone' : 'Create Zone'}
+                                    </p>
+                                    <p className="text-xs text-primary-700 dark:text-primary-300">
+                                        Click on planted areas to add/remove from this zone
+                                    </p>
+                                </div>
+
+                                <div className="space-y-4 flex-1 overflow-y-auto">
+                                    <div>
+                                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Zone Name</label>
+                                        <input
+                                            type="text"
+                                            value={currentZone?.name || ''}
+                                            onChange={(e) => setCurrentZone(prev => prev ? { ...prev, name: e.target.value } : null)}
+                                            className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100"
+                                            placeholder="e.g., West Section"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-2">Zone Color</label>
+                                        <div className="grid grid-cols-5 gap-2">
+                                            {['#4CAF50', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FFC107', '#F44336', '#8BC34A', '#607D8B'].map((color) => (
+                                                <button
+                                                    key={color}
+                                                    onClick={() => setCurrentZone(prev => prev ? { ...prev, color } : null)}
+                                                    className={`w-8 h-8 rounded-full transition-transform ${currentZone?.color === color ? 'ring-2 ring-offset-2 ring-primary-500 dark:ring-offset-dark-surface scale-110' : ''}`}
+                                                    style={{ backgroundColor: color }}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Selected planted areas:</p>
+                                        {selectedPlacements.size === 0 ? (
+                                            <p className="text-xs text-gray-400 italic">None selected</p>
+                                        ) : (
+                                            <div className="space-y-1">
+                                                {Array.from(selectedPlacements).map(placementId => {
+                                                    const placement = placements.find(p => p.id === placementId)
+                                                    return placement ? (
+                                                        <div key={placementId} className="text-xs text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getCropColor(placement.crop_id) }} />
+                                                            {placement.crop.name}
+                                                        </div>
+                                                    ) : null
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                    <button
+                                        onClick={() => {
+                                            setZoneSelectionMode(false)
+                                            setCurrentZone(null)
+                                            setSelectedPlacements(new Set())
+                                        }}
+                                        className="flex-1 px-4 py-2 rounded-xl bg-gray-100 dark:bg-dark-bg text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-dark-selected transition-colors text-sm font-medium"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            if (!currentZone || !currentZone.name) return
+
+                                            try {
+                                                // Create or get zone ID
+                                                let zoneId = currentZone.id
+                                                if (!zoneId) {
+                                                    const newZone = await createZone({
+                                                        bed_id: selectedBed.id,
+                                                        name: currentZone.name,
+                                                        color: currentZone.color
+                                                    })
+                                                    zoneId = newZone.id
+                                                } else {
+                                                    // Update existing zone
+                                                    await updateZone(zoneId, {
+                                                        name: currentZone.name,
+                                                        color: currentZone.color
+                                                    })
+                                                }
+
+                                                // Update all placements' zone assignments   
+                                                for (const placement of placements) {
+                                                    const shouldBeInZone = selectedPlacements.has(placement.id)
+                                                    const isInZone = placement.zone_id === zoneId
+
+                                                    if (shouldBeInZone && !isInZone) {
+                                                        // Add to zone
+                                                        await updatePlacement(placement.id, { zone_id: zoneId })
+                                                    } else if (!shouldBeInZone && isInZone) {
+                                                        // Remove from zone
+                                                        await updatePlacement(placement.id, { zone_id: null })
+                                                    }
+                                                }
+
+                                                // Refresh data
+                                                await fetchPlacements(selectedBed.id)
+                                                await fetchZones(selectedBed.id)
+
+                                                // Exit selection mode
+                                                setZoneSelectionMode(false)
+                                                setCurrentZone(null)
+                                                setSelectedPlacements(new Set())
+                                            } catch (error) {
+                                                console.error('Failed to save zone:', error)
+                                            }
+                                        }}
+                                        disabled={!currentZone?.name}
+                                        className="flex-1 px-4 py-2 rounded-xl bg-primary-600 text-white hover:bg-primary-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                                    >
+                                        Save
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
             </div>

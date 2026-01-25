@@ -28,10 +28,12 @@ class Zone(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     bed_id = Column(UUID(as_uuid=True), ForeignKey("beds.id"), nullable=False)
     name = Column(String, nullable=False)
-    cells = Column(JSON, default=list)  # Array of [x, y] coordinates
+    cells = Column(JSON, default=list)  # Deprecated: keeping for backward compatibility
     color = Column(String, default="#4CAF50")
     
     # Relationships
     bed = relationship("Bed", back_populates="zones")
     sensors = relationship("Sensor", back_populates="zone", cascade="all, delete-orphan")
     valves = relationship("Valve", back_populates="zone", cascade="all, delete-orphan")
+    crop_placements = relationship("CropPlacement", back_populates="zone")
+

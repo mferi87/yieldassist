@@ -50,6 +50,7 @@ class CropPlacement(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     bed_id = Column(UUID(as_uuid=True), ForeignKey("beds.id"), nullable=False)
     crop_id = Column(UUID(as_uuid=True), ForeignKey("crops.id"), nullable=False)
+    zone_id = Column(UUID(as_uuid=True), ForeignKey("zones.id"), nullable=True)  # Optional zone assignment
     position_x = Column(Integer, nullable=False)  # Top-left cell X
     position_y = Column(Integer, nullable=False)  # Top-left cell Y
     width_cells = Column(Integer, nullable=False, default=1)  # Area width in cells
@@ -62,3 +63,5 @@ class CropPlacement(Base):
     # Relationships
     bed = relationship("Bed", back_populates="crop_placements")
     crop = relationship("Crop", back_populates="placements")
+    zone = relationship("Zone", back_populates="crop_placements")
+

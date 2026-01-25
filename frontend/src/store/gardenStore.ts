@@ -21,10 +21,19 @@ export interface Bed {
     position_y: number
 }
 
+export interface Zone {
+    id: string
+    bed_id: string
+    name: string
+    cells: number[][]  // Deprecated
+    color: string
+}
+
 interface GardenState {
     gardens: Garden[]
     currentGarden: Garden | null
     beds: Bed[]
+    zones: Zone[]
     isLoading: boolean
     error: string | null
     fetchGardens: () => Promise<void>
@@ -36,12 +45,17 @@ interface GardenState {
     createBed: (data: Omit<Bed, 'id'>) => Promise<Bed>
     updateBed: (id: string, data: Partial<Bed>) => Promise<void>
     deleteBed: (id: string) => Promise<void>
+    fetchZones: (bedId: string) => Promise<void>
+    createZone: (data: { bed_id: string; name: string; color: string }) => Promise<Zone>
+    updateZone: (id: string, data: Partial<Zone>) => Promise<void>
+    deleteZone: (id: string) => Promise<void>
 }
 
 export const useGardenStore = create<GardenState>((set, get) => ({
     gardens: [],
     currentGarden: null,
     beds: [],
+    zones: [],
     isLoading: false,
     error: null,
 
@@ -153,6 +167,57 @@ export const useGardenStore = create<GardenState>((set, get) => ({
             await api.delete(`/api/beds/${id}`)
             set((state) => ({
                 beds: state.beds.filter((b) => b.id !== id),
+                isLoading: false,
+            }))
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false })
+        }
+    },
+
+    fetchZones: async (bedId: string) => {
+        set({ isLoading: true, error: null })
+        try {
+            const response = await api.get(`/api/beds/${bedId}/zones`)
+            set({ zones: response.data, isLoading: false })
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false })
+        }
+    },
+
+    createZone: async (data) => {
+        set({ isLoading: true, error: null })
+        try {
+            const response = await api.post('/api/beds/zones', data)
+            set((state) => ({
+                zones: [...state.zones, response.data],
+                isLoading: false,
+            }))
+            return response.data
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false })
+            throw error
+        }
+    },
+
+    updateZone: async (id, data) => {
+        set({ isLoading: true, error: null })
+        try {
+            const response = await api.patch(`/api/beds/zones/${id}`, data)
+            set((state) => ({
+                zones: state.zones.map((z) => (z.id === id ? { ...z, ...response.data } : z)),
+                isLoading: false,
+            }))
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false })
+        }
+    },
+
+    deleteZone: async (id) => {
+        set({ isLoading: true, error: null })
+        try {
+            await api.delete(`/api/beds/zones/${id}`)
+            set((state) => ({
+                zones: state.zones.filter((z) => z.id !== id),
                 isLoading: false,
             }))
         } catch (error: any) {

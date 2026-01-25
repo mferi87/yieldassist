@@ -19,6 +19,7 @@ export interface CropPlacement {
     id: string
     bed_id: string
     crop_id: string
+    zone_id: string | null
     position_x: number
     position_y: number
     width_cells: number
