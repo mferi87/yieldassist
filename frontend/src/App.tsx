@@ -9,6 +9,7 @@ import BedsPage from './pages/BedsPage'
 import CropsPage from './pages/CropsPage'
 import AdminPage from './pages/AdminPage'
 import DevicesPage from './pages/DevicesPage'
+import AutomationsPage from './pages/AutomationsPage'
 
 import { Outlet } from 'react-router-dom'
 
@@ -30,6 +31,8 @@ function App() {
                     <Route index element={<GardensPage />} />
                     <Route path="admin" element={<AdminPage />} />
                     <Route path="devices" element={<DevicesPage />} />
+                    <Route path="automations" element={<AutomationsPage />} />
+                    <Route path="automations/:hubId" element={<AutomationsPage />} />
                     <Route path="garden/:gardenId" element={<OverviewPage />} />
                     <Route path="garden/:gardenId/beds" element={<BedsPage />} />
                     <Route path="garden/:gardenId/crops" element={<CropsPage />} />

@@ -2,7 +2,7 @@ import { Outlet, NavLink, useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
-import { LayoutGrid, Layers, Sprout, LogOut, User, ChevronDown, Moon, Sun, Cpu } from 'lucide-react'
+import { LayoutGrid, Layers, Sprout, LogOut, User, ChevronDown, Moon, Sun, Cpu, Zap } from 'lucide-react'
 import { useState } from 'react'
 
 export default function Layout() {
@@ -102,6 +102,18 @@ export default function Layout() {
                                             <LogOut className="w-4 h-4" />
                                             {t('auth.logout')}
                                         </button>
+
+                                        {/* Divider */}
+                                        <div className="h-px bg-gray-100 dark:bg-gray-700 my-1"></div>
+
+                                        <NavLink
+                                            to="/automations"
+                                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-dark-bg"
+                                            onClick={() => setShowUserMenu(false)}
+                                        >
+                                            <Zap className="w-4 h-4 text-primary-500" />
+                                            Automations
+                                        </NavLink>
 
                                         {/* Divider */}
                                         <div className="h-px bg-gray-100 dark:bg-gray-700 my-1"></div>

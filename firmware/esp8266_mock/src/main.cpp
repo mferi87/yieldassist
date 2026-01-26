@@ -5,6 +5,7 @@
 #include <WiFiManager.h>
 #include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
+#include <map>
 
 // Mock Device Configuration
 #define SENSOR_SOIL_MOISTURE "soil_moisture"
@@ -162,6 +163,106 @@ void handleToggle() {
   server.send(200, "text/plain", "OK");
 }
 
+DynamicJsonDocument automationsDoc(4096);
+std::map<String, bool> ruleStates;
+
+void loadAutomations() {
+  if (LittleFS.exists("/automations.json")) {
+    File file = LittleFS.open("/automations.json", "r");
+    if (file) {
+      deserializeJson(automationsDoc, file);
+      file.close();
+      Serial.println("Loaded local automations");
+    }
+  }
+}
+
+void saveAutomations() {
+  File file = LittleFS.open("/automations.json", "w");
+  if (file) {
+    serializeJson(automationsDoc, file);
+    file.close();
+    Serial.println("Saved local automations");
+  }
+}
+
+bool evaluateBlock(JsonObject block) {
+  String type = block["type"];
+  if (type == "sensor") {
+    String attr = block["attribute"];
+    String op = block["operator"];
+    float target = block["value"];
+    float current = 0;
+
+    if (attr == "soil_moisture") current = mock_soil_moisture;
+    else if (attr == "temperature") current = mock_temperature;
+    
+    if (op == "<") return current < target;
+    if (op == ">") return current > target;
+    if (op == "==") return current == target;
+    if (op == "!=") return current != target;
+  }
+  return false;
+}
+
+void executeAction(JsonObject action) {
+  String type = action["type"];
+  if (type == "valve" || action.containsKey("action")) {
+    String act = action["action"];
+    if (act == "open") mock_valve_state = true;
+    else if (act == "close") mock_valve_state = false;
+    else if (act == "toggle") mock_valve_state = !mock_valve_state;
+    Serial.println("Automation triggered action: " + act);
+  }
+}
+
+void processLocalAutomations() {
+  if (!automationsDoc.is<JsonArray>()) return;
+  
+  JsonArray rules = automationsDoc.as<JsonArray>();
+  for (JsonObject rule : rules) {
+    String ruleId = rule["id"] | "unknown";
+    bool isEnabled = rule["is_enabled"] | true;
+    if (!isEnabled) continue;
+
+    // Triggers (When) - At least one must be true
+    bool triggered = false;
+    JsonArray triggers = rule["triggers"];
+    for (JsonObject t : triggers) {
+      if (evaluateBlock(t)) {
+        triggered = true;
+        break;
+      }
+    }
+    
+    // Conditions (And If) - All must be true
+    bool conditionsMet = true;
+    if (triggered) {
+      JsonArray conditions = rule["conditions"];
+      for (JsonObject c : conditions) {
+        if (!evaluateBlock(c)) {
+          conditionsMet = false;
+          break;
+        }
+      }
+    }
+
+    bool currentlyActive = triggered && conditionsMet;
+    bool previouslyActive = ruleStates[ruleId];
+
+    // Edge Trigger: Only execute if transitioning from inactive to active
+    if (currentlyActive && !previouslyActive) {
+      JsonArray actions = rule["actions"];
+      for (JsonObject a : actions) {
+        executeAction(a);
+      }
+    }
+
+    // Store state for next comparison
+    ruleStates[ruleId] = currentlyActive;
+  }
+}
+
 // ISRG Root X1 Certificate (Let's Encrypt)
 const char* lets_encrypt_root_ca = \
 "-----BEGIN CERTIFICATE-----\n" \
@@ -297,7 +398,7 @@ void sendSensorData() {
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Hub-Api-Key", apiKey);
   
-  DynamicJsonDocument doc(1024);
+  DynamicJsonDocument doc(2048);
   JsonArray readings = doc.createNestedArray("readings");
   
   JsonObject r1 = readings.createNestedObject();
@@ -323,15 +424,16 @@ void sendSensorData() {
 
   if (httpCode == 200) {
       String payload = http.getString();
-      DynamicJsonDocument res(1024);
+      DynamicJsonDocument res(4096);
       DeserializationError error = deserializeJson(res, payload);
       
       if (!error) {
+           // Process Sync Commands
            if (res.containsKey("sync")) {
                JsonObject sync = res["sync"];
                if (sync.containsKey("valves")) {
-                   JsonArray valves = sync["valves"];
-                   for (JsonObject v : valves) {
+                   JsonArray valvesArr = sync["valves"];
+                   for (JsonObject v : valvesArr) {
                        String vid = v["valve_id"];
                        if (vid == "main_valve") {
                            mock_valve_state = v["is_open"];
@@ -339,6 +441,13 @@ void sendSensorData() {
                        }
                    }
                }
+           }
+           
+           // Process/Update Automations
+           if (res.containsKey("automations")) {
+               automationsDoc = res["automations"];
+               saveAutomations();
+               Serial.println("Updated local automations from server");
            }
       }
   }
@@ -349,6 +458,7 @@ void sendSensorData() {
 void setup() {
   Serial.begin(115200);
   setupSpiffs();
+  loadAutomations();
 
   WiFiManager wifiManager;
   wifiManager.setSaveConfigCallback(saveConfigCallback);
@@ -398,4 +508,6 @@ void loop() {
      lastData = millis();
      sendSensorData();
   }
+
+  processLocalAutomations();
 }

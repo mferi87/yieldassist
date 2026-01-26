@@ -2,11 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.core.database import engine, Base
-from app.api import auth_router, gardens_router, beds_router, crops_router, users_router, sensors_router, hubs_router, firmware_router, valves_router
+from app.api import auth_router, gardens_router, beds_router, crops_router, users_router, sensors_router, hubs_router, firmware_router, valves_router, automations_router
 from app.seed_crops import seed_database
 
 # Import all models to ensure they're registered with Base before create_all
-from app.models import User, Garden, GardenMember, Bed, Zone, Crop, CropPlacement, Sensor, Valve, Hub, DeviceCommand
+from app.models import User, Garden, GardenMember, Bed, Zone, Crop, CropPlacement, Sensor, Valve, Hub, DeviceCommand, Automation
 
 settings = get_settings()
 
@@ -43,6 +43,7 @@ app.include_router(sensors_router, prefix="/api")
 app.include_router(hubs_router, prefix="/api")
 app.include_router(firmware_router, prefix="/api")
 app.include_router(valves_router, prefix="/api")
+app.include_router(automations_router, prefix="/api")
 
 
 @app.get("/")

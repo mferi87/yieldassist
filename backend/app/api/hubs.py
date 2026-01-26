@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.device import Hub, Sensor, SensorType, Valve
 from app.models.command import DeviceCommand, CommandStatus
+from app.models.automation import Automation
 from app.models.user import User
 from app.schemas.hub import HubCreate, HubResponse, HubApproval, HubCheckLimit, HubApiKeyResponse
 from pydantic import BaseModel
@@ -263,8 +264,24 @@ async def receive_hub_data(
             "is_open": cmd.payload.get("is_open")
         })
 
+    # Fetch Automations for this hub
+    automations = db.query(Automation).filter(Automation.hub_id == hub.id, Automation.is_enabled == True).all()
+    sync_automations = []
+    for auto in automations:
+        sync_automations.append({
+            "id": str(auto.id),
+            "name": auto.name,
+            "triggers": auto.triggers,
+            "conditions": auto.conditions,
+            "actions": auto.actions
+        })
+
     db.commit()
-    return {"status": "ok", "sync": sync_commands}
+    return {
+        "status": "ok", 
+        "sync": sync_commands,
+        "automations": sync_automations
+    }
 
 @router.delete("/{hub_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_hub(

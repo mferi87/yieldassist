@@ -8,6 +8,7 @@ from app.api.sensors import router as sensors_router
 from app.api.hubs import router as hubs_router
 from app.api.firmware import router as firmware_router
 from app.api.valves import router as valves_router
+from app.api.automations import router as automations_router
 
 __all__ = [
     "auth_router",
@@ -19,4 +20,5 @@ __all__ = [
     "hubs_router",
     "firmware_router",
     "valves_router",
+    "automations_router",
 ]
