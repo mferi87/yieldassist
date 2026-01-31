@@ -28,6 +28,22 @@ class Hub(Base):
     # Relationships
     sensors = relationship("Sensor", back_populates="hub")
     valves = relationship("Valve", back_populates="hub")
+    peripherals = relationship("Peripheral", back_populates="hub")
+
+
+class Peripheral(Base):
+    __tablename__ = "peripherals"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    hub_id = Column(UUID(as_uuid=True), ForeignKey("hubs.id"), nullable=False)
+    device_id = Column(String, nullable=False) # e.g. "unit_1"
+    name = Column(String, nullable=True) # User defined name for the whole unit
+
+    # Relationships
+    hub = relationship("Hub", back_populates="peripherals")
+    sensors = relationship("Sensor", back_populates="peripheral")
+    valves = relationship("Valve", back_populates="peripheral")
+
 
 
 class SensorType(str, PyEnum):
@@ -43,7 +59,9 @@ class Sensor(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     zone_id = Column(UUID(as_uuid=True), ForeignKey("zones.id"), nullable=True) # Changed to nullable
     hub_id = Column(UUID(as_uuid=True), ForeignKey("hubs.id"), nullable=True)   # Added hub link
+    peripheral_id = Column(UUID(as_uuid=True), ForeignKey("peripherals.id"), nullable=True)
     device_id = Column(String, nullable=False)
+    name = Column(String, nullable=True)
     sensor_type = Column(Enum(SensorType), nullable=False)
     last_reading = Column(JSON, default=dict)
     last_seen = Column(DateTime, nullable=True)
@@ -51,6 +69,8 @@ class Sensor(Base):
     # Relationships
     zone = relationship("Zone", back_populates="sensors")
     hub = relationship("Hub", back_populates="sensors")
+    peripheral = relationship("Peripheral", back_populates="sensors")
+
 
 
 class Valve(Base):
@@ -59,7 +79,9 @@ class Valve(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     zone_id = Column(UUID(as_uuid=True), ForeignKey("zones.id"), nullable=True) # Changed to Optional
     hub_id = Column(UUID(as_uuid=True), ForeignKey("hubs.id"), nullable=True)   # Added hub link
+    peripheral_id = Column(UUID(as_uuid=True), ForeignKey("peripherals.id"), nullable=True)
     device_id = Column(String, nullable=False)
+    name = Column(String, nullable=True)
     is_open = Column(Boolean, default=False)
     target_is_open = Column(Boolean, nullable=True) # Desired state
     last_activated = Column(DateTime, nullable=True)
@@ -67,3 +89,5 @@ class Valve(Base):
     # Relationships
     zone = relationship("Zone", back_populates="valves")
     hub = relationship("Hub", back_populates="valves")
+    peripheral = relationship("Peripheral", back_populates="valves")
+

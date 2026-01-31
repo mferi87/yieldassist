@@ -17,6 +17,7 @@ class ValveResponse(ValveBase):
     id: UUID
     zone_id: Optional[UUID]
     hub_id: Optional[UUID]
+    peripheral_id: Optional[UUID] = None
     last_activated: Optional[datetime]
 
     class Config:

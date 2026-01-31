@@ -9,6 +9,16 @@ class HubCreate(BaseModel):
     device_id: str
     email: str
 
+class PeripheralResponse(BaseModel):
+    id: UUID
+    device_id: str
+    name: Optional[str]
+    sensors: List["SensorReadingResponse"] = []
+    valves: List["ValveResponse"] = []
+
+    class Config:
+        from_attributes = True
+
 class HubResponse(BaseModel):
     id: UUID
     device_id: str
@@ -17,6 +27,7 @@ class HubResponse(BaseModel):
     last_seen: Optional[datetime]
     sensors: List["SensorReadingResponse"] = []
     valves: List["ValveResponse"] = []
+    peripherals: List[PeripheralResponse] = []
     
     class Config:
         from_attributes = True

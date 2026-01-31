@@ -6,6 +6,7 @@
 #include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
 #include <map>
+#include <algorithm>
 
 // Mock Device Configuration
 #define SENSOR_SOIL_MOISTURE "soil_moisture"
@@ -25,12 +26,62 @@ String apiKey = "";
 bool isApproved = false;
 
 // Mock Data State
-int mock_soil_moisture = 50;
-float mock_temperature = 22.5;
-bool mock_valve_state = false;
+struct SensorData {
+  String id;
+  String type;
+  float value;
+};
+struct RelayData {
+  String id;
+  bool state;
+};
+
+std::vector<SensorData> pairedSensors;
+std::vector<RelayData> pairedRelays;
 
 // Web Server for Mock UI
 ESP8266WebServer server(80);
+
+void saveDevices() {
+  DynamicJsonDocument doc(2048);
+  JsonArray sArr = doc.createNestedArray("sensors");
+  for (auto &s : pairedSensors) {
+    JsonObject obj = sArr.createNestedObject();
+    obj["id"] = s.id;
+    obj["type"] = s.type;
+    obj["val"] = s.value;
+  }
+  JsonArray rArr = doc.createNestedArray("relays");
+  for (auto &r : pairedRelays) {
+    JsonObject obj = rArr.createNestedObject();
+    obj["id"] = r.id;
+    obj["state"] = r.state;
+  }
+  File file = LittleFS.open("/devices.json", "w");
+  if (file) {
+    serializeJson(doc, file);
+    file.close();
+  }
+}
+
+void loadDevices() {
+  if (LittleFS.exists("/devices.json")) {
+    File file = LittleFS.open("/devices.json", "r");
+    if (file) {
+      DynamicJsonDocument doc(2048);
+      deserializeJson(doc, file);
+      JsonArray sArr = doc["sensors"];
+      for (JsonObject s : sArr) {
+        pairedSensors.push_back({s["id"], s["type"], s["val"]});
+      }
+      JsonArray rArr = doc["relays"];
+      for (JsonObject r : rArr) {
+        pairedRelays.push_back({r["id"], r["state"]});
+      }
+      file.close();
+    }
+  }
+}
 
 void saveConfigCallback () {
   Serial.println("Should save config");
@@ -88,15 +139,12 @@ void handleSaveSettings() {
     String s = server.arg("server");
     String e = server.arg("email");
     
-    // Simple validation could go here
     if (s.length() < 64 && e.length() < 64) {
       strcpy(api_server, s.c_str());
       strcpy(user_email, e.c_str());
       saveConfig();
       server.sendHeader("Location", "/");
       server.send(303);
-      // Optional: Reset approval if server changes? 
-      // For now keeping it simple. User might need to re-approve if key is invalid on new server.
     } else {
       server.send(400, "text/plain", "Input too long");
     }
@@ -105,61 +153,139 @@ void handleSaveSettings() {
   }
 }
 
+void handlePair() {
+  String type = server.arg("type");
+  String unitId = "dev_" + String(random(1000, 9999)); // More robust semi-unique ID
+  
+  if (type == "sensor") {
+    // Add 4 sensors
+    pairedSensors.push_back({unitId + ":moisture", "soil_moisture", 30.0});
+    pairedSensors.push_back({unitId + ":temp", "temperature", 22.5});
+    pairedSensors.push_back({unitId + ":humidity", "humidity", 45.0});
+    pairedSensors.push_back({unitId + ":light", "light", 500.0});
+  } else if (type == "relay") {
+    // Add 1 relay
+    pairedRelays.push_back({unitId + ":relay_1", false});
+  }
+
+  saveDevices();
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
+void handleRemove() {
+  if (server.hasArg("id")) {
+    String prefix = server.arg("id");
+    if (!prefix.endsWith(":")) prefix += ":";
+    
+    // Remove all entities belonging to this unit
+    pairedSensors.erase(std::remove_if(pairedSensors.begin(), pairedSensors.end(), [&](SensorData &s){ return s.id.startsWith(prefix); }), pairedSensors.end());
+    pairedRelays.erase(std::remove_if(pairedRelays.begin(), pairedRelays.end(), [&](RelayData &r){ return r.id.startsWith(prefix); }), pairedRelays.end());
+    
+    saveDevices();
+  }
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
 void handleRoot() {
   String html = "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'><title>YieldAssist Hub Mock</title>";
-  html += "<style>body{font-family:Arial;text-align:center;padding:20px;max-width:600px;margin:0 auto;} .slider{width:80%;} .card{background:#f4f4f4;padding:20px;margin:10px 0;border-radius:10px;box-shadow:0 2px 5px rgba(0,0,0,0.1);} .btn{padding:10px 20px;border:none;border-radius:5px;cursor:pointer;font-size:16px;} .btn-red{background:#ff4444;color:white;}</style></head><body>";
+  html += "<style>body{font-family:Arial;text-align:center;padding:10px;max-width:800px;margin:0 auto;background:#f0f2f5;} .card{background:white;padding:20px;margin:10px 0;border-radius:15px;box-shadow:0 4px 6px rgba(0,0,0,0.05);} .btn{padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;transition:all 0.2s;} .btn-primary{background:#007bff;color:white;} .btn-danger{background:#dc3545;color:white;padding:5px 10px;} .btn-success{background:#28a745;color:white;} .btn-gray{background:#6c757d;color:white;} .slider{width:100%;} table{width:100%;border-collapse:collapse;margin-top:20px;} th,td{padding:12px;text-align:left;border-bottom:1px solid #eee;} .badge{padding:4px 8px;border-radius:4px;font-size:12px;font-weight:bold;text-transform:uppercase;} .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;} @media(max-width:600px){.grid{grid-template-columns:1fr;}}</style></head><body>";
   html += "<h1>YieldAssist Hub</h1>";
-  html += "<div class='card'>";
-  html += "<p><strong>Device ID:</strong> " + deviceId + "</p>";
   
-  if (isApproved) {
-    html += "<p style='color:green;font-weight:bold;'>Status: Connected</p>";
-  } else {
-    html += "<p style='color:orange;font-weight:bold;'>Status: Pending Approval</p>";
-  }
+  html += "<div class='grid'>";
+  
+  // Status & Config
+  html += "<div><div class='card'>";
+  html += "<p><strong>ID:</strong> " + deviceId + "</p>";
+  html += isApproved ? "<p style='color:green;'>● Connected</p>" : "<p style='color:orange;'>● Pending Approval</p>";
   html += "</div>";
 
-  // Configuration Form
-  html += "<div class='card'><h3>Configuration</h3>";
+  html += "<div class='card'><h3>System Setup</h3>";
   html += "<form action='/save_settings' method='POST'>";
-  html += "<p><label>Server URL:</label><br><input type='text' name='server' value='" + String(api_server) + "' style='width:90%;padding:5px;'></p>";
-  html += "<p><label>User Email:</label><br><input type='text' name='email' value='" + String(user_email) + "' style='width:90%;padding:5px;'></p>";
-  html += "<button type='submit' class='btn' style='background:#2196F3;color:white;'>Update Config</button>";
-  html += "</form></div>";
+  html += "<input type='text' name='server' value='" + String(api_server) + "' placeholder='Server' style='width:90%;margin-bottom:10px;'><br>";
+  html += "<input type='text' name='email' value='" + String(user_email) + "' placeholder='Email' style='width:90%;margin-bottom:10px;'><br>";
+  html += "<button type='submit' class='btn btn-primary'>Apply Config</button>";
+  html += "</form></div></div>";
 
-  // Mock Controls
-  html += "<div class='card'><h2>Soil Moisture</h2>";
-  html += "<input type='range' min='0' max='100' value='" + String(mock_soil_moisture) + "' class='slider' onchange='updateValue(\"moisture\", this.value)'>";
-  html += "<p>Value: <span id='moisture_val'>" + String(mock_soil_moisture) + "</span>%</p></div>";
+  // Pairing Actions
+  html += "<div class='card'><h3>Add Hardware</h3>";
+  html += "<div style='display:flex;gap:10px;justify-content:center;'>";
+  html += "<form action='/pair' method='GET'><input type='hidden' name='type' value='sensor'><button type='submit' class='btn btn-success'>Pair Sensor (4 In 1)</button></form>";
+  html += "<form action='/pair' method='GET'><input type='hidden' name='type' value='relay'><button type='submit' class='btn btn-success'>Pair Relay (1 Ch)</button></form>";
+  html += "</div></div>";
 
-  html += "<div class='card'><h2>Temperature</h2>";
-  html += "<input type='range' min='0' max='50' value='" + String(mock_temperature) + "' class='slider' onchange='updateValue(\"temp\", this.value)'>";
-  html += "<p>Value: <span id='temp_val'>" + String(mock_temperature) + "</span>&deg;C</p></div>";
-  
-  html += "<div class='card'><h2>Valve Control</h2>";
-  html += "<button onclick='toggleValve()' class='btn' style='background:" + String(mock_valve_state ? "green" : "gray") + ";color:white;'>" + String(mock_valve_state ? "OPEN" : "CLOSED") + "</button></div>";
+  html += "</div>"; // end grid
 
-  html += "<div class='card'><h3>Settings</h3>";
-  html += "<button onclick='if(confirm(\"Reset all settings?\")) location.href=\"/reset\"' class='btn btn-red'>Reset WiFi & Config</button>";
-  html += "</div>";
+  // Grouped Devices List
+  std::map<String, std::vector<SensorData>> groupedSensors;
+  for(auto &s : pairedSensors) {
+    int colonPos = s.id.indexOf(':');
+    String unit = (colonPos != -1) ? s.id.substring(0, colonPos) : "Standalone";
+    groupedSensors[unit].push_back(s);
+  }
 
-  html += "<script>function updateValue(type, val){document.getElementById(type+'_val').innerText = val; fetch('/set?type='+type+'&val='+val);} function toggleValve(){fetch('/toggle'); setTimeout(()=>location.reload(), 500);}</script>";
+  std::map<String, std::vector<RelayData>> groupedRelays;
+  for(auto &r : pairedRelays) {
+    int colonPos = r.id.indexOf(':');
+    String unit = (colonPos != -1) ? r.id.substring(0, colonPos) : "Standalone";
+    groupedRelays[unit].push_back(r);
+  }
+
+  // Get unique units
+  std::vector<String> units;
+  for(auto const& it : groupedSensors) units.push_back(it.first);
+  for(auto const& it : groupedRelays) {
+    if (std::find(units.begin(), units.end(), it.first) == units.end()) units.push_back(it.first);
+  }
+
+  for (String unit : units) {
+    html += "<div class='card'><h2>Unit: " + unit + " <button onclick='removeDev(\"" + unit + "\")' class='btn btn-danger' style='float:right;'>Remove Unit</button></h2>";
+    html += "<table><tr><th>Entity</th><th>Type</th><th>Control / Status</th></tr>";
+    
+    if (groupedSensors.count(unit)) {
+      for (auto &s : groupedSensors[unit]) {
+        html += "<tr><td><code>" + s.id + "</code></td>";
+        html += "<td><span class='badge' style='background:#e7f3ff;color:#007bff;'>" + s.type + "</span></td>";
+        html += "<td><input type='range' min='0' max='1000' value='" + String((int)s.value) + "' class='slider' onchange='updateVal(\"" + s.id + "\", this.value)'><br>" + String(s.value) + "</td></tr>";
+      }
+    }
+
+    if (groupedRelays.count(unit)) {
+      for (auto &r : groupedRelays[unit]) {
+        html += "<tr><td><code>" + r.id + "</code></td>";
+        html += "<td><span class='badge' style='background:#fef1f2;color:#dc3545;'>RELAY</span></td>";
+        html += "<td><button onclick='toggleRelay(\"" + r.id + "\")' class='btn " + String(r.state ? "btn-success" : "btn-gray") + "'>" + String(r.state ? "ON" : "OFF") + "</button></td></tr>";
+      }
+    }
+    html += "</table></div>";
+  }
+
+  html += "<div class='card'><button onclick='if(confirm(\"Reset?\"))location.href=\"/reset\"' class='btn btn-danger'>Factory Reset</button></div>";
+
+  html += "<script>function updateVal(id,val){fetch('/set?id='+id+'&val='+val);} function toggleRelay(id){fetch('/toggle?id='+id); setTimeout(()=>location.reload(), 200);} function removeDev(id){if(confirm(\"Remove \"+id+\"?\")) {fetch('/remove?id='+id); setTimeout(()=>location.reload(), 200);}}</script>";
   html += "</body></html>";
   server.send(200, "text/html", html);
 }
 
 void handleSet() {
-  if (server.hasArg("type") && server.hasArg("val")) {
-    String type = server.arg("type");
+  if (server.hasArg("id") && server.hasArg("val")) {
+    String id = server.arg("id");
     float val = server.arg("val").toFloat();
-    if (type == "moisture") mock_soil_moisture = (int)val;
-    if (type == "temp") mock_temperature = val;
+    for (auto &s : pairedSensors) {
+      if (s.id == id) s.value = val;
+    }
   }
   server.send(200, "text/plain", "OK");
 }
 
 void handleToggle() {
-  mock_valve_state = !mock_valve_state;
+  if (server.hasArg("id")) {
+    String id = server.arg("id");
+    for (auto &r : pairedRelays) {
+      if (r.id == id) r.state = !r.state;
+    }
+  }
   server.send(200, "text/plain", "OK");
 }
 
@@ -189,13 +315,19 @@ void saveAutomations() {
 bool evaluateBlock(JsonObject block) {
   String type = block["type"];
   if (type == "sensor") {
-    String attr = block["attribute"];
+    String devId = block["device_id"];
     String op = block["operator"];
     float target = block["value"];
-    float current = 0;
+    float current = -1;
 
-    if (attr == "soil_moisture") current = mock_soil_moisture;
-    else if (attr == "temperature") current = mock_temperature;
+    for (auto &s : pairedSensors) {
+      if (s.id == devId) {
+        current = s.value;
+        break;
+      }
+    }
+    
+    if (current == -1) return false;
     
     if (op == "<") return current < target;
     if (op == ">") return current > target;
@@ -206,13 +338,17 @@ bool evaluateBlock(JsonObject block) {
 }
 
 void executeAction(JsonObject action) {
-  String type = action["type"];
-  if (type == "valve" || action.containsKey("action")) {
-    String act = action["action"];
-    if (act == "open") mock_valve_state = true;
-    else if (act == "close") mock_valve_state = false;
-    else if (act == "toggle") mock_valve_state = !mock_valve_state;
-    Serial.println("Automation triggered action: " + act);
+  String devId = action["device_id"];
+  String act = action["action"];
+  
+  for (auto &r : pairedRelays) {
+    if (r.id == devId) {
+      if (act == "open") r.state = true;
+      else if (act == "close") r.state = false;
+      else if (act == "toggle") r.state = !r.state;
+      Serial.println("Automation triggered " + devId + ": " + act);
+      break;
+    }
   }
 }
 
@@ -398,23 +534,21 @@ void sendSensorData() {
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Hub-Api-Key", apiKey);
   
-  DynamicJsonDocument doc(2048);
+  DynamicJsonDocument doc(4096);
   JsonArray readings = doc.createNestedArray("readings");
-  
-  JsonObject r1 = readings.createNestedObject();
-  r1["sensor_id"] = "moisture";
-  r1["sensor_type"] = "soil_moisture";
-  r1["value"] = mock_soil_moisture;
-  
-  JsonObject r2 = readings.createNestedObject();
-  r2["sensor_id"] = "temp";
-  r2["sensor_type"] = "temperature";
-  r2["value"] = mock_temperature;
+  for (auto &s : pairedSensors) {
+    JsonObject obj = readings.createNestedObject();
+    obj["sensor_id"] = s.id;
+    obj["sensor_type"] = s.type;
+    obj["value"] = s.value;
+  }
 
   JsonArray valves = doc.createNestedArray("valves");
-  JsonObject v1 = valves.createNestedObject();
-  v1["valve_id"] = "main_valve";
-  v1["is_open"] = mock_valve_state;
+  for (auto &r : pairedRelays) {
+    JsonObject obj = valves.createNestedObject();
+    obj["valve_id"] = r.id;
+    obj["is_open"] = r.state;
+  }
   
   String requestBody;
   serializeJson(doc, requestBody);
@@ -435,9 +569,11 @@ void sendSensorData() {
                    JsonArray valvesArr = sync["valves"];
                    for (JsonObject v : valvesArr) {
                        String vid = v["valve_id"];
-                       if (vid == "main_valve") {
-                           mock_valve_state = v["is_open"];
-                           Serial.printf("Synced valve state: %d\n", mock_valve_state);
+                       for (auto &r : pairedRelays) {
+                           if (r.id == vid) {
+                               r.state = v["is_open"];
+                               Serial.println("Synced relay " + vid + ": " + String(r.state));
+                           }
                        }
                    }
                }
@@ -458,6 +594,7 @@ void sendSensorData() {
 void setup() {
   Serial.begin(115200);
   setupSpiffs();
+  loadDevices();
   loadAutomations();
 
   WiFiManager wifiManager;
@@ -485,6 +622,8 @@ void setup() {
   server.on("/", handleRoot);
   server.on("/set", handleSet);
   server.on("/toggle", handleToggle);
+  server.on("/pair", handlePair);
+  server.on("/remove", handleRemove);
   server.on("/save_settings", handleSaveSettings);
   server.on("/reset", handleReset);
   server.begin();

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.device import Hub, Sensor, SensorType, Valve
+from app.models.device import Hub, Sensor, SensorType, Valve, Peripheral
 from app.models.command import DeviceCommand, CommandStatus
 from app.models.automation import Automation
 from app.models.user import User
@@ -161,33 +161,36 @@ async def receive_hub_data(
     
     # Process readings
     for reading in payload.readings:
-        # Construct a unique device ID for this sensor.
-        # If it's a sub-device of the hub, we might just use the reading.sensor_id directly if it's a MAC.
-        # For the mock, we can use "HUB_ID:SENSOR_ID"
         target_device_id = f"{hub.device_id}:{reading.sensor_id}"
         
-        # Check if this sensor exists in the database
-        # Note: In a real app, sensors might need to be explicitly registered to a Zone first.
-        # But maybe we can auto-discover?
-        # The user's request: "The user should be able to pair zigbee devices" -> Suggests dynamic discovery.
-        # But for now, we just want to update values if they exist.
-        
+        # Handle Peripheral grouping if ID contains ":"
+        peripheral = None
+        if ":" in reading.sensor_id:
+            p_id, s_id = reading.sensor_id.split(":", 1)
+            p_device_id = f"{hub.device_id}:{p_id}"
+            peripheral = db.query(Peripheral).filter(Peripheral.device_id == p_device_id).first()
+            if not peripheral:
+                peripheral = Peripheral(hub_id=hub.id, device_id=p_device_id, name=p_id)
+                db.add(peripheral)
+                db.flush()
+
         sensor = db.query(Sensor).filter(Sensor.device_id == target_device_id).first()
         
         if sensor:
             sensor.last_reading = {"value": reading.value}
             sensor.last_seen = datetime.utcnow()
             sensor.sensor_type = reading.sensor_type
-            # Ensure linked to hub if not already
-            if not sensor.hub_id:
-                sensor.hub_id = hub.id
+            sensor.hub_id = hub.id
+            if peripheral:
+                sensor.peripheral_id = peripheral.id
         else:
-            # Create new unassigned sensor linked to this hub
             sensor = Sensor(
                 device_id=target_device_id,
                 sensor_type=reading.sensor_type,
-                zone_id=None, # Unassigned
+                name=reading.sensor_id.split(":")[-1],
+                zone_id=None,
                 hub_id=hub.id,
+                peripheral_id=peripheral.id if peripheral else None,
                 last_reading={"value": reading.value},
                 last_seen=datetime.utcnow()
             )
@@ -197,22 +200,33 @@ async def receive_hub_data(
     for valve_data in payload.valves:
         target_device_id = f"{hub.device_id}:{valve_data.valve_id}"
         
+        peripheral = None
+        if ":" in valve_data.valve_id:
+            p_id, v_id = valve_data.valve_id.split(":", 1)
+            p_device_id = f"{hub.device_id}:{p_id}"
+            peripheral = db.query(Peripheral).filter(Peripheral.device_id == p_device_id).first()
+            if not peripheral:
+                peripheral = Peripheral(hub_id=hub.id, device_id=p_device_id, name=p_id)
+                db.add(peripheral)
+                db.flush()
+
         valve = db.query(Valve).filter(Valve.device_id == target_device_id).first()
         
         if valve:
             valve.is_open = valve_data.is_open
-            # Only update last_activated if opening
             if valve_data.is_open and not valve.is_open:
                 valve.last_activated = datetime.utcnow()
-            
-            if not valve.hub_id:
-                valve.hub_id = hub.id
+            valve.hub_id = hub.id
+            if peripheral:
+                valve.peripheral_id = peripheral.id
         else:
             valve = Valve(
                 device_id=target_device_id,
+                name=valve_data.valve_id.split(":")[-1],
                 is_open=valve_data.is_open,
                 zone_id=None,
                 hub_id=hub.id,
+                peripheral_id=peripheral.id if peripheral else None,
                 last_activated=datetime.utcnow() if valve_data.is_open else None
             )
             db.add(valve)
@@ -294,6 +308,46 @@ async def delete_hub(
         Hub.id == hub_id,
         Hub.user_id == current_user.id
     ).first()
+    
+@router.patch("/peripherals/{peripheral_id}/name")
+async def rename_peripheral(
+    peripheral_id: str,
+    name: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Rename a peripheral (Zigbee device)."""
+    peripheral = db.query(Peripheral).join(Hub).filter(
+        Peripheral.id == peripheral_id,
+        Hub.user_id == current_user.id
+    ).first()
+    
+    if not peripheral:
+        raise HTTPException(status_code=404, detail="Peripheral not found")
+        
+    peripheral.name = name
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.delete("/{hub_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_hub(
+    hub_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a hub."""
+    hub = db.query(Hub).filter(
+        Hub.id == hub_id,
+        Hub.user_id == current_user.id
+    ).first()
+    
+    if not hub:
+        raise HTTPException(status_code=404, detail="Hub not found")
+        
+    db.delete(hub)
+    db.commit()
+    return None
     
     if not hub:
         raise HTTPException(status_code=404, detail="Hub not found")

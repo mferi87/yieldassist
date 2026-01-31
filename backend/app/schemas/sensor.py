@@ -15,6 +15,7 @@ class SensorReadingCreate(SensorReadingBase):
 class SensorReadingResponse(SensorReadingBase):
     id: UUID
     zone_id: Optional[UUID]
+    peripheral_id: Optional[UUID] = None
     device_id: str
     last_seen: Optional[datetime]
 

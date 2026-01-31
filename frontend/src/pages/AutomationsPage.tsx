@@ -27,11 +27,36 @@ export default function AutomationsPage() {
     const [loading, setLoading] = useState(true)
     const [editingAutomation, setEditingAutomation] = useState<Partial<Automation> | null>(null)
     const [myHubs, setMyHubs] = useState<any[]>([])
+    const [hubPeripherals, setHubPeripherals] = useState<any[]>([])
+    const [hubSensors, setHubSensors] = useState<any[]>([])
+    const [hubValves, setHubValves] = useState<any[]>([])
+    const [renamingDevice, setRenamingDevice] = useState<{ id: string, name: string, type: 'peripheral' | 'sensor' | 'valve' } | null>(null)
 
     useEffect(() => {
         fetchAutomations()
         if (!hubId) fetchHubs()
+        else fetchHubDevices(hubId)
     }, [hubId])
+
+    useEffect(() => {
+        if (editingAutomation?.hub_id) {
+            fetchHubDevices(editingAutomation.hub_id)
+        }
+    }, [editingAutomation?.hub_id])
+
+    const fetchHubDevices = async (id: string) => {
+        try {
+            const h = await api.get(`/api/hubs/my-hubs`)
+            const hub = h.data.find((x: any) => x.id === id)
+            if (hub) {
+                setHubPeripherals(hub.peripherals || [])
+                setHubSensors(hub.sensors || [])
+                setHubValves(hub.valves || [])
+            }
+        } catch (err) {
+            console.error('Failed to fetch hub devices', err)
+        }
+    }
 
     const fetchHubs = async () => {
         try {
@@ -143,6 +168,80 @@ export default function AutomationsPage() {
                             </div>
                         )}
 
+                        {/* Device Management (Renaming) */}
+                        {(hubId || editingAutomation.hub_id) && (
+                            <div className="bg-white dark:bg-dark-surface p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4">Zigbee Device Units</h3>
+                                <div className="space-y-4">
+                                    {hubPeripherals.length === 0 && (
+                                        <div className="text-sm text-gray-400 italic">No Zigbee devices discovered yet. Pair a unit on your hub mock UI.</div>
+                                    )}
+                                    {hubPeripherals.map(p => (
+                                        <div key={p.id} className="bg-gray-50 dark:bg-dark-bg p-4 rounded-xl border border-gray-100 dark:border-gray-800/50">
+                                            <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-gray-800 pb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-lg font-bold">{p.name || p.device_id.split(':').pop()}</span>
+                                                    <span className="text-xs bg-gray-200 dark:bg-dark-surface px-2 py-0.5 rounded text-gray-500 uppercase font-mono">{p.device_id.split(':').pop()}</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => setRenamingDevice({ id: p.id, name: p.name || p.device_id.split(':').pop(), type: 'peripheral' })}
+                                                    className="text-primary-500 text-sm font-bold hover:underline"
+                                                >
+                                                    Rename Unit
+                                                </button>
+                                            </div>
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                                {p.sensors.map((s: any) => (
+                                                    <div key={s.id} className="text-center p-2 bg-white dark:bg-dark-surface rounded-lg border border-gray-100 dark:border-gray-800">
+                                                        <p className="text-[10px] text-gray-400 uppercase font-bold">{s.sensor_type}</p>
+                                                        <p className="font-mono text-sm">{s.last_reading?.value?.toFixed(1) || '0.0'}</p>
+                                                    </div>
+                                                ))}
+                                                {p.valves.map((v: any) => (
+                                                    <div key={v.id} className="text-center p-2 bg-white dark:bg-dark-surface rounded-lg border border-gray-100 dark:border-gray-800">
+                                                        <p className="text-[10px] text-gray-400 uppercase font-bold">Relay</p>
+                                                        <div className={`w-2 h-2 rounded-full mx-auto mt-1 ${v.is_open ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-gray-300'}`}></div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Renaming Modal (Simple) */}
+                        {renamingDevice && (
+                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                                <div className="bg-white dark:bg-dark-surface p-6 rounded-2xl shadow-2xl max-w-sm w-full">
+                                    <h3 className="text-lg font-bold mb-4">Rename Device</h3>
+                                    <input
+                                        type="text"
+                                        value={renamingDevice.name}
+                                        onChange={e => setRenamingDevice({ ...renamingDevice, name: e.target.value })}
+                                        className="w-full bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 mb-4 outline-none focus:ring-2 focus:ring-primary-500"
+                                    />
+                                    <div className="flex gap-2 justify-end">
+                                        <button onClick={() => setRenamingDevice(null)} className="px-4 py-2 text-gray-400">Cancel</button>
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    await api.patch(`/api/hubs/peripherals/${renamingDevice.id}/name?name=${renamingDevice.name}`)
+                                                    setRenamingDevice(null)
+                                                    fetchHubDevices(hubId || editingAutomation.hub_id!)
+                                                } catch (err) {
+                                                    alert('Failed to rename')
+                                                }
+                                            }}
+                                            className="px-4 py-2 bg-primary-600 text-white rounded-lg"
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Name Input */}
                         <div className="bg-white dark:bg-dark-surface p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
                             <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Automation Name</label>
@@ -164,18 +263,32 @@ export default function AutomationsPage() {
                                 {editingAutomation.triggers?.map((t, i) => (
                                     <div key={i} className="flex flex-wrap items-center gap-4 bg-gray-50 dark:bg-dark-bg p-4 rounded-xl border border-gray-100 dark:border-gray-800/50">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm font-medium text-gray-500">Sensor</span>
+                                            <span className="text-sm font-medium text-gray-500">Device</span>
                                             <select
-                                                value={t.attribute}
+                                                value={t.device_id}
                                                 onChange={e => {
                                                     const next = [...(editingAutomation.triggers || [])]
-                                                    next[i] = { ...next[i], attribute: e.target.value }
+                                                    const selected = hubSensors.find(s => s.device_id.split(':').pop() === e.target.value)
+                                                    next[i] = {
+                                                        ...next[i],
+                                                        device_id: e.target.value,
+                                                        attribute: selected?.sensor_type || 'soil_moisture'
+                                                    }
                                                     setEditingAutomation({ ...editingAutomation, triggers: next })
                                                 }}
                                                 className="bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-primary-500"
                                             >
-                                                <option value="soil_moisture">Soil Moisture</option>
-                                                <option value="temperature">Temperature</option>
+                                                <option value="">Select sensor...</option>
+                                                {hubPeripherals.map(p => (
+                                                    <optgroup key={p.id} label={p.name || p.device_id.split(':').pop()}>
+                                                        {p.sensors.map((s: any) => (
+                                                            <option key={s.id} value={s.device_id.split(':').pop()}>{s.sensor_type}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                ))}
+                                                {hubSensors.filter(s => !s.peripheral_id).map(s => (
+                                                    <option key={s.id} value={s.device_id.split(':').pop()}>{s.name || s.device_id.split(':').pop()} ({s.sensor_type})</option>
+                                                ))}
                                             </select>
                                         </div>
                                         <div className="flex items-center gap-2">
@@ -233,18 +346,32 @@ export default function AutomationsPage() {
                                 {editingAutomation.conditions?.map((c, i) => (
                                     <div key={i} className="flex flex-wrap items-center gap-4 bg-gray-50 dark:bg-dark-bg p-4 rounded-xl border border-gray-100 dark:border-gray-800/50">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm font-medium text-gray-500">Sensor</span>
+                                            <span className="text-sm font-medium text-gray-500">Device</span>
                                             <select
-                                                value={c.attribute}
+                                                value={c.device_id}
                                                 onChange={e => {
                                                     const next = [...(editingAutomation.conditions || [])]
-                                                    next[i] = { ...next[i], attribute: e.target.value }
+                                                    const selected = hubSensors.find(s => s.device_id.split(':').pop() === e.target.value)
+                                                    next[i] = {
+                                                        ...next[i],
+                                                        device_id: e.target.value,
+                                                        attribute: selected?.sensor_type || 'soil_moisture'
+                                                    }
                                                     setEditingAutomation({ ...editingAutomation, conditions: next })
                                                 }}
                                                 className="bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-primary-500"
                                             >
-                                                <option value="soil_moisture">Soil Moisture</option>
-                                                <option value="temperature">Temperature</option>
+                                                <option value="">Select sensor...</option>
+                                                {hubPeripherals.map(p => (
+                                                    <optgroup key={p.id} label={p.name || p.device_id.split(':').pop()}>
+                                                        {p.sensors.map((s: any) => (
+                                                            <option key={s.id} value={s.device_id.split(':').pop()}>{s.sensor_type}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                ))}
+                                                {hubSensors.filter(s => !s.peripheral_id).map(s => (
+                                                    <option key={s.id} value={s.name || s.device_id.split(':').pop()} >{s.name || s.device_id.split(':').pop()} ({s.sensor_type})</option>
+                                                ))}
                                             </select>
                                         </div>
                                         <div className="flex items-center gap-2">
@@ -302,6 +429,30 @@ export default function AutomationsPage() {
                                 {editingAutomation.actions?.map((a, i) => (
                                     <div key={i} className="flex flex-wrap items-center gap-4 bg-gray-50 dark:bg-dark-bg p-4 rounded-xl border border-gray-100 dark:border-gray-800/50">
                                         <div className="flex items-center gap-2">
+                                            <span className="text-sm font-medium text-gray-500">Relay</span>
+                                            <select
+                                                value={a.device_id}
+                                                onChange={e => {
+                                                    const next = [...(editingAutomation.actions || [])]
+                                                    next[i] = { ...next[i], device_id: e.target.value }
+                                                    setEditingAutomation({ ...editingAutomation, actions: next })
+                                                }}
+                                                className="bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                                            >
+                                                <option value="">Select relay...</option>
+                                                {hubPeripherals.map(p => (
+                                                    <optgroup key={p.id} label={p.name || p.device_id.split(':').pop()}>
+                                                        {p.valves.map((v: any) => (
+                                                            <option key={v.id} value={v.device_id.split(':').pop()}>{v.device_id.split(':').pop().split('_').pop()}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                ))}
+                                                {hubValves.filter(v => !v.peripheral_id).map(v => (
+                                                    <option key={v.id} value={v.device_id.split(':').pop()}>{v.name || v.device_id.split(':').pop()}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="flex items-center gap-2">
                                             <span className="text-sm font-medium text-gray-500">Action</span>
                                             <select
                                                 value={a.action}
@@ -312,9 +463,9 @@ export default function AutomationsPage() {
                                                 }}
                                                 className="bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-primary-500"
                                             >
-                                                <option value="open">Open Valve</option>
-                                                <option value="close">Close Valve</option>
-                                                <option value="toggle">Toggle Valve</option>
+                                                <option value="open">Turn ON</option>
+                                                <option value="close">Turn OFF</option>
+                                                <option value="toggle">Toggle</option>
                                             </select>
                                         </div>
                                         <button
