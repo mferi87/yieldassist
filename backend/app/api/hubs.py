@@ -231,9 +231,9 @@ async def receive_hub_data(
         valve = db.query(Valve).filter(Valve.device_id == target_device_id).first()
         
         if valve:
-            valve.is_open = valve_data.is_open
             if valve_data.is_open and not valve.is_open:
                 valve.last_activated = datetime.utcnow()
+            valve.is_open = valve_data.is_open
             valve.hub_id = hub.id
             if peripheral:
                 valve.peripheral_id = peripheral.id
@@ -308,12 +308,30 @@ async def receive_hub_data(
     sync_commands = {}
     
     # Fetch active commands for this hub (PENDING or SENT)
+    # Fetch active commands for this hub (PENDING or SENT)
     active_commands = db.query(DeviceCommand).filter(
         DeviceCommand.device_id.like(f"{hub.device_id}:%"),
         DeviceCommand.status.in_([CommandStatus.PENDING, CommandStatus.SENT])
-    ).all()
+    ).order_by(DeviceCommand.created_at.asc()).all()
     
+    # Group commands by device to handle superseding
+    commands_by_device = {}
     for cmd in active_commands:
+        if cmd.device_id not in commands_by_device:
+            commands_by_device[cmd.device_id] = []
+        commands_by_device[cmd.device_id].append(cmd)
+
+    for device_id, cmds in commands_by_device.items():
+        # The last command is the effective one
+        latest_cmd = cmds[-1]
+        
+        # Mark all previous commands as superseded (COMPLETED)
+        for old_cmd in cmds[:-1]:
+            old_cmd.status = CommandStatus.COMPLETED
+            old_cmd.completed_at = datetime.utcnow()
+            db.add(old_cmd)
+            
+        cmd = latest_cmd
         target_valve = db.query(Valve).filter(Valve.device_id == cmd.device_id).first()
         
         if target_valve:
@@ -337,15 +355,23 @@ async def receive_hub_data(
             db.add(cmd)
         
         # Add to sync payload (Command)
-        valve_local_id = cmd.device_id.split(":")[-1]
+        # Extract local ID by removing Hub ID prefix
+        valve_local_id = cmd.device_id
+        if valve_local_id.startswith(f"{hub.device_id}:"):
+             valve_local_id = valve_local_id[len(hub.device_id)+1:]
         
         if "valves" not in sync_commands:
             sync_commands["valves"] = []
             
-        sync_commands["valves"].append({
-            "valve_id": valve_local_id,
-            "is_open": cmd.payload.get("is_open")
-        })
+        # Deduplicate: Only send the latest state per valve
+        valve_entry = next((item for item in sync_commands["valves"] if item["valve_id"] == valve_local_id), None)
+        if valve_entry:
+            valve_entry["is_open"] = cmd.payload.get("is_open")
+        else:
+            sync_commands["valves"].append({
+                "valve_id": valve_local_id,
+                "is_open": cmd.payload.get("is_open")
+            })
 
     # --- Name Synchronization (Backend -> Firmware) ---
     # Check if we need to push names to the Hub

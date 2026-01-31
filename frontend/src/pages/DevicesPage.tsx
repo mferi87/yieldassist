@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../store/authStore'
 import { api } from '../api/client'
-import { ChevronDown, ChevronRight, CheckCircle, Clock, Cpu, Download, RefreshCw, Server, AlertCircle, Trash2, Zap, Edit2, Check, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, CheckCircle, Clock, Cpu, Download, RefreshCw, Server, AlertCircle, Trash2, Zap, Edit2, Check, X, Loader2 } from 'lucide-react'
 
 // Types
 interface Sensor {
@@ -138,12 +138,20 @@ const DeviceGroup = ({ device, onToggleValve, onRename, titleOverride, forceOpen
                             </div>
                             <button
                                 onClick={() => onToggleValve(valve.id)}
-                                className={`text-xs px-3 py-1.5 rounded-md font-medium border transition-all ${valve.is_open
-                                    ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-300 dark:border-green-900/50'
-                                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-transparent dark:text-gray-400 dark:border-gray-700 dark:hover:bg-gray-800'
+                                disabled={valve.target_is_open !== null}
+                                className={`text-xs px-3 py-1.5 rounded-md font-medium border transition-all flex items-center gap-2 ${valve.target_is_open !== null
+                                    ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed dark:bg-gray-800 dark:border-gray-700'
+                                    : valve.is_open
+                                        ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-300 dark:border-green-900/50'
+                                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-transparent dark:text-gray-400 dark:border-gray-700 dark:hover:bg-gray-800'
                                     }`}
                             >
-                                {valve.is_open ? 'Close' : 'Open'}
+                                {valve.target_is_open !== null && (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                )}
+                                {valve.target_is_open !== null
+                                    ? (valve.target_is_open ? 'Opening...' : 'Closing...')
+                                    : (valve.is_open ? 'Close' : 'Open')}
                             </button>
                         </div>
                     ))}
@@ -180,8 +188,8 @@ export default function DevicesPage() {
     const [error, setError] = useState<string | null>(null)
     const [selectedHub, setSelectedHub] = useState<Hub | null>(null) // For details modal
 
-    const fetchHubs = async () => {
-        setLoading(true)
+    const fetchHubs = async (background = false) => {
+        if (!background) setLoading(true)
         setError(null)
         try {
             const res = await api.get('/api/hubs/my-hubs')
@@ -192,7 +200,7 @@ export default function DevicesPage() {
             console.error(err)
             setError('Failed to load devices')
         } finally {
-            setLoading(false)
+            if (!background) setLoading(false)
         }
     }
 
@@ -269,6 +277,8 @@ export default function DevicesPage() {
 
     useEffect(() => {
         fetchHubs()
+        const interval = setInterval(() => fetchHubs(true), 2000) // Poll every 2 seconds silently
+        return () => clearInterval(interval)
     }, [])
 
     return (
