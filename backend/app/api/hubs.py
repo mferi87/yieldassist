@@ -17,15 +17,23 @@ router = APIRouter(prefix="/hubs", tags=["Hubs"])
 class HubSensorReading(BaseModel):
     sensor_id: str  # Unique ID for the sub-device/sensor (e.g. Zigbee MAC or Index)
     sensor_type: SensorType
+    sensor_type: SensorType
     value: Any
+    name: Optional[str] = None
 
 class HubValveState(BaseModel):
     valve_id: str
     is_open: bool
+    name: Optional[str] = None
+
+class HubPeripheralData(BaseModel):
+    peripheral_id: str
+    name: Optional[str] = None
 
 class HubDataPayload(BaseModel):
     readings: List[HubSensorReading] = []
     valves: List[HubValveState] = []
+    peripherals: List[HubPeripheralData] = []
     uptime: Optional[int] = None
     wifi_rssi: Optional[int] = None
 
@@ -153,9 +161,8 @@ async def receive_hub_data(
     """
     Receive data from a Hub.
     Updates or creates sensors AND valves associated with this Hub.
-    For simplicity, we find sensors by `device_id` which acts as the unique identifier.
-    The hub sends `sensor_id` which we prepend with `hub.device_id` or treat as global device_id?
-    Let's assume `sensor_id` sent by hub is unique within the hub context, or globally unique (Zigbee MAC).
+    Also synchronizes the device list: any sensor/valve associated with this hub
+    that is NOT in the payload will be DELETED.
     """
     
     # Update hub last seen and metrics
@@ -165,9 +172,12 @@ async def receive_hub_data(
     if payload.wifi_rssi is not None:
         hub.wifi_rssi = payload.wifi_rssi
     
+    seen_sensor_ids = set()
+    
     # Process readings
     for reading in payload.readings:
         target_device_id = f"{hub.device_id}:{reading.sensor_id}"
+        seen_sensor_ids.add(target_device_id)
         
         # Handle Peripheral grouping if ID contains ":"
         peripheral = None
@@ -193,7 +203,7 @@ async def receive_hub_data(
             sensor = Sensor(
                 device_id=target_device_id,
                 sensor_type=reading.sensor_type,
-                name=reading.sensor_id.split(":")[-1],
+                name=reading.name or reading.sensor_id.split(":")[-1],
                 zone_id=None,
                 hub_id=hub.id,
                 peripheral_id=peripheral.id if peripheral else None,
@@ -203,8 +213,10 @@ async def receive_hub_data(
             db.add(sensor)
 
     # Process valves
+    seen_valve_ids = set()
     for valve_data in payload.valves:
         target_device_id = f"{hub.device_id}:{valve_data.valve_id}"
+        seen_valve_ids.add(target_device_id)
         
         peripheral = None
         if ":" in valve_data.valve_id:
@@ -228,7 +240,7 @@ async def receive_hub_data(
         else:
             valve = Valve(
                 device_id=target_device_id,
-                name=valve_data.valve_id.split(":")[-1],
+                name=valve_data.name or valve_data.valve_id.split(":")[-1],
                 is_open=valve_data.is_open,
                 zone_id=None,
                 hub_id=hub.id,
@@ -237,8 +249,59 @@ async def receive_hub_data(
             )
             db.add(valve)
 
+    # Process peripherals renaming (FW -> BE)
+    for p_data in payload.peripherals:
+        target_device_id = f"{hub.device_id}:{p_data.peripheral_id}"
+        peripheral = db.query(Peripheral).filter(Peripheral.device_id == target_device_id).first()
+        
+        if peripheral:
+            # Conflict Resolution: Last Write Wins Logic
+            # If payload name differs from DB Name:
+            if p_data.name and p_data.name != peripheral.name:
+                is_recent_db_update = False
+                if peripheral.updated_at:
+                    # Check if DB update was less than 30 seconds ago
+                    delta = datetime.utcnow() - peripheral.updated_at
+                    if delta.total_seconds() < 30:
+                        is_recent_db_update = True
+                
+                if is_recent_db_update:
+                    # Backend wins (Frontend change is pending propagate to FW)
+                    pass 
+                else:
+                    # Firmware wins (User likely changed name on Device UI)
+                    peripheral.name = p_data.name
+                    peripheral.updated_at = datetime.utcnow()
+                    db.add(peripheral)
+
     db.commit()
     
+    db.commit()
+    
+    # --- Synchronization: Delete devices not in payload ---
+    # Delete missing sensors
+    db.query(Sensor).filter(
+        Sensor.hub_id == hub.id,
+        Sensor.device_id.notin_(seen_sensor_ids)
+    ).delete(synchronize_session=False)
+
+    # Delete missing valves
+    db.query(Valve).filter(
+        Valve.hub_id == hub.id,
+        Valve.device_id.notin_(seen_valve_ids)
+    ).delete(synchronize_session=False)
+
+    # Delete orphans peripherals (those with no sensors/valves left)
+    # We first find all peripherals for this hub
+    hub_peripherals = db.query(Peripheral).filter(Peripheral.hub_id == hub.id).all()
+    for p in hub_peripherals:
+        # Check if it has any children
+        # Note: We need to count ACTIVE children. Since we just deleted inactive ones, count() is safe.
+        sensor_count = db.query(Sensor).filter(Sensor.peripheral_id == p.id).count()
+        valve_count = db.query(Valve).filter(Valve.peripheral_id == p.id).count()
+        if sensor_count == 0 and valve_count == 0:
+            db.delete(p)
+
     db.commit()
     
     # Process Command Queue
@@ -273,7 +336,7 @@ async def receive_hub_data(
             cmd.sent_at = datetime.utcnow()
             db.add(cmd)
         
-        # Add to sync payload
+        # Add to sync payload (Command)
         valve_local_id = cmd.device_id.split(":")[-1]
         
         if "valves" not in sync_commands:
@@ -283,6 +346,61 @@ async def receive_hub_data(
             "valve_id": valve_local_id,
             "is_open": cmd.payload.get("is_open")
         })
+
+    # --- Name Synchronization (Backend -> Firmware) ---
+    # Check if we need to push names to the Hub
+    
+    # 1. Sync Sensor Names
+    for reading in payload.readings:
+        target_device_id = f"{hub.device_id}:{reading.sensor_id}"
+        sensor = db.query(Sensor).filter(Sensor.device_id == target_device_id).first()
+        if sensor and sensor.name and reading.name and sensor.name != reading.name:
+             if "sensors" not in sync_commands:
+                 sync_commands["sensors"] = []
+             sync_commands["sensors"].append({
+                 "sensor_id": reading.sensor_id,
+                 "name": sensor.name
+             })
+
+    # 2. Sync Valve Names
+    for valve_data in payload.valves:
+        target_device_id = f"{hub.device_id}:{valve_data.valve_id}"
+        valve = db.query(Valve).filter(Valve.device_id == target_device_id).first()
+        if valve and valve.name and valve_data.name and valve.name != valve_data.name:
+             if "valves" not in sync_commands:
+                 sync_commands["valves"] = []
+             # Check if we already have this valve in sync (from commands) to merge
+             existing_entry = next((item for item in sync_commands["valves"] if item["valve_id"] == valve_data.valve_id), None)
+             if existing_entry:
+                 existing_entry["name"] = valve.name
+             else:
+                 sync_commands["valves"].append({
+                     "valve_id": valve_data.valve_id,
+                     "name": valve.name
+                 })
+
+    # 3. Sync Peripheral Names (BE -> FW)
+    received_pmap = {p.peripheral_id: p.name for p in payload.peripherals}
+    
+    hub_peripherals = db.query(Peripheral).filter(Peripheral.hub_id == hub.id).all()
+    for p in hub_peripherals:
+        # Extract local ID from "hub:local"
+        if p.device_id.startswith(f"{hub.device_id}:"):
+            local_id = p.device_id[len(hub.device_id)+1:]
+            fw_name = received_pmap.get(local_id)
+            
+            # If BE has a name, and it differs from FW name (or FW didn't send it)
+            if p.name and p.name != local_id and p.name != fw_name:
+                if "peripherals" not in sync_commands:
+                    sync_commands["peripherals"] = []
+                
+                # Check duplication
+                existing = next((x for x in sync_commands["peripherals"] if x["id"] == local_id), None)
+                if not existing:
+                    sync_commands["peripherals"].append({
+                        "id": local_id,
+                        "name": p.name
+                    })
 
     # Fetch Automations for this hub
     automations = db.query(Automation).filter(Automation.hub_id == hub.id, Automation.is_enabled == True).all()
@@ -303,18 +421,6 @@ async def receive_hub_data(
         "automations": sync_automations
     }
 
-@router.delete("/{hub_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_hub(
-    hub_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Delete a hub."""
-    hub = db.query(Hub).filter(
-        Hub.id == hub_id,
-        Hub.user_id == current_user.id
-    ).first()
-    
 @router.patch("/peripherals/{peripheral_id}/name")
 async def rename_peripheral(
     peripheral_id: str,
@@ -332,6 +438,7 @@ async def rename_peripheral(
         raise HTTPException(status_code=404, detail="Peripheral not found")
         
     peripheral.name = name
+    peripheral.updated_at = datetime.utcnow()
     db.commit()
     return {"status": "ok"}
 
@@ -347,13 +454,6 @@ async def delete_hub(
         Hub.id == hub_id,
         Hub.user_id == current_user.id
     ).first()
-    
-    if not hub:
-        raise HTTPException(status_code=404, detail="Hub not found")
-        
-    db.delete(hub)
-    db.commit()
-    return None
     
     if not hub:
         raise HTTPException(status_code=404, detail="Hub not found")

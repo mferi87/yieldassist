@@ -6,6 +6,7 @@
 #include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
 #include <map>
+#include <set>
 #include <algorithm>
 
 // Mock Device Configuration
@@ -30,14 +31,44 @@ struct SensorData {
   String id;
   String type;
   float value;
+  String name;
 };
 struct RelayData {
   String id;
   bool state;
+  String name;
 };
 
 std::vector<SensorData> pairedSensors;
 std::vector<RelayData> pairedRelays;
+std::map<String, String> deviceNames;
+
+void saveDeviceNames() {
+  DynamicJsonDocument doc(2048);
+  for (auto const& item : deviceNames) {
+    doc[item.first] = item.second;
+  }
+  File file = LittleFS.open("/device_names.json", "w");
+  if (file) {
+    serializeJson(doc, file);
+    file.close();
+  }
+}
+
+void loadDeviceNames() {
+  if (LittleFS.exists("/device_names.json")) {
+    File file = LittleFS.open("/device_names.json", "r");
+    if (file) {
+      DynamicJsonDocument doc(2048);
+      deserializeJson(doc, file);
+      JsonObject obj = doc.as<JsonObject>();
+      for (JsonPair p : obj) {
+        deviceNames[p.key().c_str()] = p.value().as<String>();
+      }
+      file.close();
+    }
+  }
+}
 
 // Web Server for Mock UI
 ESP8266WebServer server(80);
@@ -50,12 +81,14 @@ void saveDevices() {
     obj["id"] = s.id;
     obj["type"] = s.type;
     obj["val"] = s.value;
+    obj["name"] = s.name;
   }
   JsonArray rArr = doc.createNestedArray("relays");
   for (auto &r : pairedRelays) {
     JsonObject obj = rArr.createNestedObject();
     obj["id"] = r.id;
     obj["state"] = r.state;
+    obj["name"] = r.name;
   }
   File file = LittleFS.open("/devices.json", "w");
   if (file) {
@@ -72,11 +105,13 @@ void loadDevices() {
       deserializeJson(doc, file);
       JsonArray sArr = doc["sensors"];
       for (JsonObject s : sArr) {
-        pairedSensors.push_back({s["id"], s["type"], s["val"]});
+        String n = s["name"] | "";
+        pairedSensors.push_back({s["id"], s["type"], s["val"], n});
       }
       JsonArray rArr = doc["relays"];
       for (JsonObject r : rArr) {
-        pairedRelays.push_back({r["id"], r["state"]});
+        String n = r["name"] | "";
+        pairedRelays.push_back({r["id"], r["state"], n});
       }
       file.close();
     }
@@ -159,13 +194,13 @@ void handlePair() {
   
   if (type == "sensor") {
     // Add 4 sensors
-    pairedSensors.push_back({unitId + ":moisture", "soil_moisture", 30.0});
-    pairedSensors.push_back({unitId + ":temp", "temperature", 22.5});
-    pairedSensors.push_back({unitId + ":humidity", "humidity", 45.0});
-    pairedSensors.push_back({unitId + ":light", "light", 500.0});
+    pairedSensors.push_back({unitId + ":moisture", "soil_moisture", 30.0, "Soil Moisture"});
+    pairedSensors.push_back({unitId + ":temp", "temperature", 22.5, "Temperature"});
+    pairedSensors.push_back({unitId + ":humidity", "humidity", 45.0, "Humidity"});
+    pairedSensors.push_back({unitId + ":light", "light", 500.0, "Light"});
   } else if (type == "relay") {
     // Add 1 relay
-    pairedRelays.push_back({unitId + ":relay_1", false});
+    pairedRelays.push_back({unitId + ":relay_1", false, "Main Valve"});
   }
 
   saveDevices();
@@ -240,12 +275,13 @@ void handleRoot() {
   }
 
   for (String unit : units) {
-    html += "<div class='card'><h2>Unit: " + unit + " <button onclick='removeDev(\"" + unit + "\")' class='btn btn-danger' style='float:right;'>Remove Unit</button></h2>";
-    html += "<table><tr><th>Entity</th><th>Type</th><th>Control / Status</th></tr>";
+    String dName = deviceNames.count(unit) ? deviceNames[unit] : unit;
+    html += "<div class='card'><h2>Device: <input type='text' id='dn_" + unit + "' value='" + dName + "' style='font-size:1.2rem;width:200px'> <button onclick='updateDeviceName(\"" + unit + "\", document.getElementById(\"dn_" + unit + "\").value)' class='btn'>Save</button> <button onclick='removeDev(\"" + unit + "\")' class='btn btn-danger' style='float:right;font-size:12px'>Remove</button></h2>";
+    html += "<table><tr><th>Name / Entity</th><th>Type</th><th>Control / Status</th></tr>";
     
     if (groupedSensors.count(unit)) {
       for (auto &s : groupedSensors[unit]) {
-        html += "<tr><td><code>" + s.id + "</code></td>";
+        html += "<tr><td><input type='text' value='" + s.name + "' onchange='updateName(\"" + s.id + "\", this.value)' style='width:120px;border:1px solid #ccc;padding:4px;border-radius:4px;'><br><code>" + s.id + "</code></td>";
         html += "<td><span class='badge' style='background:#e7f3ff;color:#007bff;'>" + s.type + "</span></td>";
         html += "<td><input type='range' min='0' max='1000' value='" + String((int)s.value) + "' class='slider' onchange='updateVal(\"" + s.id + "\", this.value)'><br>" + String(s.value) + "</td></tr>";
       }
@@ -253,7 +289,7 @@ void handleRoot() {
 
     if (groupedRelays.count(unit)) {
       for (auto &r : groupedRelays[unit]) {
-        html += "<tr><td><code>" + r.id + "</code></td>";
+        html += "<tr><td><input type='text' value='" + r.name + "' onchange='updateName(\"" + r.id + "\", this.value)' style='width:120px;border:1px solid #ccc;padding:4px;border-radius:4px;'><br><code>" + r.id + "</code></td>";
         html += "<td><span class='badge' style='background:#fef1f2;color:#dc3545;'>RELAY</span></td>";
         html += "<td><button onclick='toggleRelay(\"" + r.id + "\")' class='btn " + String(r.state ? "btn-success" : "btn-gray") + "'>" + String(r.state ? "ON" : "OFF") + "</button></td></tr>";
       }
@@ -263,9 +299,19 @@ void handleRoot() {
 
   html += "<div class='card'><button onclick='if(confirm(\"Reset?\"))location.href=\"/reset\"' class='btn btn-danger'>Factory Reset</button></div>";
 
-  html += "<script>function updateVal(id,val){fetch('/set?id='+id+'&val='+val);} function toggleRelay(id){fetch('/toggle?id='+id); setTimeout(()=>location.reload(), 200);} function removeDev(id){if(confirm(\"Remove \"+id+\"?\")) {fetch('/remove?id='+id); setTimeout(()=>location.reload(), 200);}}</script>";
+  html += "<script>function updateVal(id,val){fetch('/set?id='+id+'&val='+val);} function toggleRelay(id){fetch('/toggle?id='+id); setTimeout(()=>location.reload(), 200);} function removeDev(id){if(confirm(\"Remove \"+id+\"?\")) {fetch('/remove?id='+id); setTimeout(()=>location.reload(), 200);}} function updateName(id,name){fetch('/set_name?id='+id+'&name='+encodeURIComponent(name));} function updateDeviceName(id,name){fetch('/set_device_name?id='+id+'&name='+encodeURIComponent(name));}</script>";
   html += "</body></html>";
   server.send(200, "text/html", html);
+}
+
+void handleSetDeviceName() {
+  if (server.hasArg("id") && server.hasArg("name")) {
+     String id = server.arg("id");
+     String name = server.arg("name");
+     deviceNames[id] = name;
+     saveDeviceNames();
+  }
+  server.send(200, "text/plain", "OK");
 }
 
 void handleSet() {
@@ -275,6 +321,21 @@ void handleSet() {
     for (auto &s : pairedSensors) {
       if (s.id == id) s.value = val;
     }
+  }
+  server.send(200, "text/plain", "OK");
+}
+
+void handleSetName() {
+  if (server.hasArg("id") && server.hasArg("name")) {
+    String id = server.arg("id");
+    String name = server.arg("name");
+    for (auto &s : pairedSensors) {
+      if (s.id == id) s.name = name;
+    }
+    for (auto &r : pairedRelays) {
+      if (r.id == id) r.name = name;
+    }
+    saveDevices();
   }
   server.send(200, "text/plain", "OK");
 }
@@ -541,6 +602,7 @@ void sendSensorData() {
     obj["sensor_id"] = s.id;
     obj["sensor_type"] = s.type;
     obj["value"] = s.value;
+    if (s.name.length() > 0) obj["name"] = s.name;
   }
 
   JsonArray valves = doc.createNestedArray("valves");
@@ -548,11 +610,32 @@ void sendSensorData() {
     JsonObject obj = valves.createNestedObject();
     obj["valve_id"] = r.id;
     obj["is_open"] = r.state;
+    if (r.name.length() > 0) obj["name"] = r.name;
   }
 
   doc["uptime"] = millis() / 1000;
   doc["wifi_rssi"] = WiFi.RSSI();
   
+  // Peripherals
+  JsonArray peripherals = doc.createNestedArray("peripherals");
+  std::set<String> unitIds;
+  for(auto &s : pairedSensors) {
+     int colon = s.id.indexOf(':');
+     if (colon != -1) unitIds.insert(s.id.substring(0, colon));
+  }
+  for(auto &r : pairedRelays) {
+     int colon = r.id.indexOf(':');
+     if (colon != -1) unitIds.insert(r.id.substring(0, colon));
+  }
+  
+  for(auto const& id : unitIds) {
+      if (deviceNames.count(id)) {
+           JsonObject p = peripherals.createNestedObject();
+           p["peripheral_id"] = id;
+           p["name"] = deviceNames[id];
+      }
+  }
+
   String requestBody;
   serializeJson(doc, requestBody);
   
@@ -566,6 +649,7 @@ void sendSensorData() {
       
       if (!error) {
            // Process Sync Commands
+           // Process Sync Commands
            if (res.containsKey("sync")) {
                JsonObject sync = res["sync"];
                if (sync.containsKey("valves")) {
@@ -574,12 +658,42 @@ void sendSensorData() {
                        String vid = v["valve_id"];
                        for (auto &r : pairedRelays) {
                            if (r.id == vid) {
-                               r.state = v["is_open"];
-                               Serial.println("Synced relay " + vid + ": " + String(r.state));
+                               if (v.containsKey("is_open")) {
+                                   r.state = v["is_open"];
+                                   Serial.println("Synced relay state " + vid + ": " + String(r.state));
+                               }
+                               if (v.containsKey("name")) {
+                                   String newName = v["name"];
+                                   if (newName.length() > 0) r.name = newName;
+                               }
                            }
                        }
                    }
                }
+               if (sync.containsKey("sensors")) {
+                   JsonArray sensorsArr = sync["sensors"];
+                   for (JsonObject s : sensorsArr) {
+                       String sid = s["sensor_id"];
+                       for (auto &localS : pairedSensors) {
+                           if (localS.id == sid) {
+                               if (s.containsKey("name")) {
+                                   String newName = s["name"];
+                                   if (newName.length() > 0) localS.name = newName;
+                               }
+                           }
+                       }
+                   }
+               }
+                if (sync.containsKey("peripherals")) {
+                    JsonArray pArr = sync["peripherals"];
+                    for (JsonObject p : pArr) {
+                        String id = p["id"];
+                        String name = p["name"];
+                        deviceNames[id] = name;
+                    }
+                    saveDeviceNames();
+                }
+                saveDevices();
            }
            
            // Process/Update Automations
@@ -598,6 +712,7 @@ void setup() {
   Serial.begin(115200);
   setupSpiffs();
   loadDevices();
+  loadDeviceNames();
   loadAutomations();
 
   WiFiManager wifiManager;
@@ -624,6 +739,8 @@ void setup() {
 
   server.on("/", handleRoot);
   server.on("/set", handleSet);
+  server.on("/set_name", handleSetName);
+  server.on("/set_device_name", handleSetDeviceName);
   server.on("/toggle", handleToggle);
   server.on("/pair", handlePair);
   server.on("/remove", handleRemove);

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../store/authStore'
 import { api } from '../api/client'
-import { ChevronDown, ChevronRight, CheckCircle, Clock, Cpu, Download, RefreshCw, Server, AlertCircle, Trash2, Zap } from 'lucide-react'
+import { ChevronDown, ChevronRight, CheckCircle, Clock, Cpu, Download, RefreshCw, Server, AlertCircle, Trash2, Zap, Edit2, Check, X } from 'lucide-react'
 
 // Types
 interface Sensor {
@@ -48,8 +48,10 @@ interface Hub {
     peripherals: Peripheral[]
 }
 
-const DeviceGroup = ({ device, onToggleValve, titleOverride, forceOpen = false }: { device: Peripheral, onToggleValve: (id: string) => void, titleOverride?: string, forceOpen?: boolean }) => {
+const DeviceGroup = ({ device, onToggleValve, onRename, titleOverride, forceOpen = false }: { device: Peripheral, onToggleValve: (id: string) => void, onRename: (id: string, name: string) => void, titleOverride?: string, forceOpen?: boolean }) => {
     const [isOpen, setIsOpen] = useState(forceOpen)
+    const [isEditing, setIsEditing] = useState(false)
+    const [editName, setEditName] = useState(device.name || '')
 
     // Use device name or ID, or titleOverride
     const displayName = titleOverride || device.name || `Device ${device.device_id}`
@@ -61,21 +63,66 @@ const DeviceGroup = ({ device, onToggleValve, titleOverride, forceOpen = false }
 
     return (
         <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-dark-surface/50">
-            <button
+            <div
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between p-4 bg-gray-50/50 dark:bg-gray-800/30 hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
+                className="w-full flex items-center justify-between p-4 bg-gray-50/50 dark:bg-gray-800/30 hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
             >
                 <div className="flex items-center gap-3">
                     <div className="bg-white dark:bg-gray-700 p-2 rounded-lg shadow-sm">
                         <Cpu className="w-5 h-5 text-primary-500" />
                     </div>
-                    <div className="text-left">
-                        <h4 className="font-semibold text-gray-900 dark:text-white">{displayName}</h4>
+                    <div className="text-left flex-1">
+                        {isEditing ? (
+                            <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                                <input
+                                    type="text"
+                                    value={editName}
+                                    onChange={e => setEditName(e.target.value)}
+                                    className="px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    autoFocus
+                                />
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        onRename(device.id, editName)
+                                        setIsEditing(false)
+                                    }}
+                                    className="p-1 text-green-600 hover:bg-green-100 rounded"
+                                >
+                                    <Check className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setIsEditing(false)
+                                    }}
+                                    className="p-1 text-red-600 hover:bg-red-100 rounded"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2 group/title">
+                                <h4 className="font-semibold text-gray-900 dark:text-white">{displayName}</h4>
+                                {!titleOverride && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setEditName(device.name || '')
+                                            setIsEditing(true)
+                                        }}
+                                        className="opacity-0 group-hover/title:opacity-100 p-1 text-gray-400 hover:text-primary-500 transition-opacity"
+                                    >
+                                        <Edit2 className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                        )}
                         <p className="text-xs text-gray-500">{device.sensors?.length || 0} sensors, {device.valves?.length || 0} actuators</p>
                     </div>
                 </div>
                 {isOpen ? <ChevronDown className="w-5 h-5 text-gray-400" /> : <ChevronRight className="w-5 h-5 text-gray-400" />}
-            </button>
+            </div>
 
             {isOpen && (
                 <div className="p-2 space-y-1">
@@ -203,6 +250,16 @@ export default function DevicesPage() {
         }
     }
 
+    const handleRenamePeripheral = async (id: string, name: string) => {
+        try {
+            await api.patch(`/api/hubs/peripherals/${id}/name?name=${encodeURIComponent(name)}`)
+            fetchHubs()
+        } catch (err) {
+            console.error(err)
+            alert('Failed to rename device')
+        }
+    }
+
     useEffect(() => {
         if (selectedHub) {
             const updated = myHubs.find(h => h.id === selectedHub.id)
@@ -237,6 +294,7 @@ export default function DevicesPage() {
                                     key={peripheral.id}
                                     device={peripheral}
                                     onToggleValve={handleToggleValve}
+                                    onRename={handleRenamePeripheral}
                                 />
                             ))}
 
@@ -287,6 +345,7 @@ export default function DevicesPage() {
                                     valves: selectedHub.valves.filter(v => !v.peripheral_id)
                                 } as any}
                                 onToggleValve={handleToggleValve}
+                                onRename={() => { }} // Hub main unit rename not supported here yet (renames Hub itself?)
                                 titleOverride="Hub Onboard"
                                 forceOpen={true}
                             />

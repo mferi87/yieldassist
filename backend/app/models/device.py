@@ -40,6 +40,7 @@ class Peripheral(Base):
     hub_id = Column(UUID(as_uuid=True), ForeignKey("hubs.id"), nullable=False)
     device_id = Column(String, nullable=False) # e.g. "unit_1"
     name = Column(String, nullable=True) # User defined name for the whole unit
+    updated_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     hub = relationship("Hub", back_populates="peripherals")
