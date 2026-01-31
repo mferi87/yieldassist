@@ -1,7 +1,7 @@
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 from app.models.device import SensorType
 
 class SensorReadingBase(BaseModel):
@@ -18,6 +18,14 @@ class SensorReadingResponse(SensorReadingBase):
     peripheral_id: Optional[UUID] = None
     device_id: str
     last_seen: Optional[datetime]
+    
+    @computed_field
+    @property
+    def is_online(self) -> bool:
+        if not self.last_seen:
+            return False
+        # Sensors might report less often, so we allow 10 minutes
+        return datetime.utcnow() - self.last_seen < timedelta(minutes=10)
 
     class Config:
         from_attributes = True

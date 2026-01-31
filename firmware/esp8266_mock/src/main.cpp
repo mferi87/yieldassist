@@ -549,6 +549,9 @@ void sendSensorData() {
     obj["valve_id"] = r.id;
     obj["is_open"] = r.state;
   }
+
+  doc["uptime"] = millis() / 1000;
+  doc["wifi_rssi"] = WiFi.RSSI();
   
   String requestBody;
   serializeJson(doc, requestBody);

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Enum, JSON
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Enum, JSON, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -17,6 +17,8 @@ class Hub(Base):
     api_key = Column(String, unique=True, nullable=True)
     is_approved = Column(Boolean, default=False)
     last_seen = Column(DateTime, nullable=True)
+    uptime = Column(Integer, nullable=True)
+    wifi_rssi = Column(Integer, nullable=True)
     
     # User relationship (Owner)
     # The email provided during setup will link to a user.

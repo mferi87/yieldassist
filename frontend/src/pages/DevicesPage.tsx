@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../store/authStore'
 import { api } from '../api/client'
-import { CheckCircle, Clock, Cpu, Download, RefreshCw, Server, AlertCircle, Trash2, Zap } from 'lucide-react'
+import { ChevronDown, ChevronRight, CheckCircle, Clock, Cpu, Download, RefreshCw, Server, AlertCircle, Trash2, Zap } from 'lucide-react'
 
 // Types
 interface Sensor {
@@ -12,6 +12,8 @@ interface Sensor {
     sensor_type: string
     last_reading: { value: any }
     last_seen: string
+    is_online: boolean
+    peripheral_id?: string
 }
 
 interface Valve {
@@ -20,7 +22,17 @@ interface Valve {
     is_open: boolean
     target_is_open: boolean | null
     last_activated: string | null
+    peripheral_id?: string
 }
+
+interface Peripheral {
+    id: string
+    device_id: string
+    name: string | null
+    sensors: Sensor[]
+    valves: Valve[]
+}
+
 
 interface Hub {
     id: string
@@ -28,8 +40,88 @@ interface Hub {
     name: string | null
     is_approved: boolean
     last_seen: string | null
+    is_online: boolean
+    uptime: number | null
+    wifi_rssi: number | null
     sensors: Sensor[]
     valves: Valve[]
+    peripherals: Peripheral[]
+}
+
+const DeviceGroup = ({ device, onToggleValve, titleOverride, forceOpen = false }: { device: Peripheral, onToggleValve: (id: string) => void, titleOverride?: string, forceOpen?: boolean }) => {
+    const [isOpen, setIsOpen] = useState(forceOpen)
+
+    // Use device name or ID, or titleOverride
+    const displayName = titleOverride || device.name || `Device ${device.device_id}`
+
+    // Combined list of entities (sensors and valves)
+    const hasEntities = (device.sensors && device.sensors.length > 0) || (device.valves && device.valves.length > 0)
+
+    if (!hasEntities) return null;
+
+    return (
+        <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-dark-surface/50">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between p-4 bg-gray-50/50 dark:bg-gray-800/30 hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
+            >
+                <div className="flex items-center gap-3">
+                    <div className="bg-white dark:bg-gray-700 p-2 rounded-lg shadow-sm">
+                        <Cpu className="w-5 h-5 text-primary-500" />
+                    </div>
+                    <div className="text-left">
+                        <h4 className="font-semibold text-gray-900 dark:text-white">{displayName}</h4>
+                        <p className="text-xs text-gray-500">{device.sensors?.length || 0} sensors, {device.valves?.length || 0} actuators</p>
+                    </div>
+                </div>
+                {isOpen ? <ChevronDown className="w-5 h-5 text-gray-400" /> : <ChevronRight className="w-5 h-5 text-gray-400" />}
+            </button>
+
+            {isOpen && (
+                <div className="p-2 space-y-1">
+                    {/* Valves First */}
+                    {device.valves?.map(valve => (
+                        <div key={valve.id} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-colors group">
+                            <div className="flex items-center gap-3 pl-2">
+                                <div className={`w-2 h-2 rounded-full ${valve.is_open ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                                <div>
+                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Valve {valve.device_id.split(':').pop()}</p>
+                                    <p className="text-[10px] text-gray-400">Actuator • {valve.is_open ? 'Open' : 'Closed'}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => onToggleValve(valve.id)}
+                                className={`text-xs px-3 py-1.5 rounded-md font-medium border transition-all ${valve.is_open
+                                    ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-300 dark:border-green-900/50'
+                                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 dark:bg-transparent dark:text-gray-400 dark:border-gray-700 dark:hover:bg-gray-800'
+                                    }`}
+                            >
+                                {valve.is_open ? 'Close' : 'Open'}
+                            </button>
+                        </div>
+                    ))}
+
+                    {/* Sensors */}
+                    {device.sensors?.map(sensor => (
+                        <div key={sensor.id} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-colors group">
+                            <div className="flex items-center gap-3 pl-2">
+                                <span className={`w-2 h-2 rounded-full ${sensor.is_online ? 'bg-blue-500 animate-pulse' : 'bg-red-500'}`} />
+                                <div>
+                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-200 capitalize">{sensor.sensor_type.replace('_', ' ')}</p>
+                                    <p className="text-[10px] text-gray-400">Sensor • Last: {new Date(sensor.last_seen).toLocaleTimeString()}</p>
+                                </div>
+                            </div>
+                            <div className="text-right pr-2">
+                                <p className="font-mono font-bold text-gray-900 dark:text-white">
+                                    {typeof sensor.last_reading?.value === 'number' ? sensor.last_reading.value.toFixed(1) : (sensor.last_reading?.value || '--')}
+                                </p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    )
 }
 
 export default function DevicesPage() {
@@ -139,64 +231,65 @@ export default function DevicesPage() {
                         </div>
 
                         <div className="space-y-4">
-                            <h4 className="font-semibold text-gray-700 dark:text-gray-300 border-b pb-2 border-gray-100 dark:border-gray-800">Connected Sensors</h4>
-                            {selectedHub.sensors && selectedHub.sensors.length > 0 ? (
-                                <div className="grid gap-3">
-                                    {selectedHub.sensors.map(sensor => (
-                                        <div key={sensor.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-black/20 rounded-lg">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`p-2 rounded-full ${sensor.sensor_type === 'soil_moisture' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
-                                                    <Cpu className="w-4 h-4" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-gray-900 dark:text-white capitalize">{sensor.sensor_type.replace('_', ' ')}</p>
-                                                    <p className="text-xs text-gray-500">{new Date(sensor.last_seen).toLocaleTimeString()}</p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="font-mono font-bold text-lg text-gray-900 dark:text-white">
-                                                    {typeof sensor.last_reading?.value === 'number' ? sensor.last_reading.value.toFixed(1) : sensor.last_reading?.value}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-center text-gray-500 py-4">No sensors have reported data yet.</p>
-                            )}
+                            {/* Grouped by Device (Peripheral) */}
+                            {selectedHub.peripherals && selectedHub.peripherals.map(peripheral => (
+                                <DeviceGroup
+                                    key={peripheral.id}
+                                    device={peripheral}
+                                    onToggleValve={handleToggleValve}
+                                />
+                            ))}
 
-                            <h4 className="font-semibold text-gray-700 dark:text-gray-300 border-b pb-2 border-gray-100 dark:border-gray-800 pt-4">Valves / Controls</h4>
-                            {selectedHub.valves && selectedHub.valves.length > 0 ? (
-                                <div className="grid gap-3">
-                                    {selectedHub.valves.map(valve => (
-                                        <div key={valve.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-black/20 rounded-lg">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`p-2 rounded-full ${valve.is_open ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
-                                                    <Cpu className="w-4 h-4" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-gray-900 dark:text-white">Valve {valve.device_id.split(':').pop()}</p>
-                                                    <p className="text-xs text-gray-500">
-                                                        {valve.is_open ? 'Open' : 'Closed'}
-                                                        {valve.last_activated && ` • Last: ${new Date(valve.last_activated).toLocaleTimeString()}`}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={() => handleToggleValve(valve.id)}
-                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${valve.is_open
-                                                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                                                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200'
-                                                    }`}
-                                            >
-                                                {valve.is_open ? 'Turn Off' : 'Turn On'}
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-center text-gray-500 py-2">No valves connected.</p>
-                            )}
+                            {/* Standalone Entities (Hub Sensors/Valves not in a peripheral) */}
+                            {/* We need to filter sensors/valves that are NOT part of a peripheral if the backend duplicates them, 
+                                but typically "top-level" lists might include everything or just direct ones. 
+                                Assuming top-level 'sensors' and 'valves' lists in Hub object contain ALL, OR just direct.
+                                Let's assume for now we render "Hub Entities" if there are any sensors/valves that usually attach directly to Hub (like onboard).
+                                A safe bet is to check if we have sensors/valves that are conceptually "Device 0" or similar, 
+                                but the current backend structure might replicate them in Peripherals.
+                                
+                                For this user request, 'sensors' and 'valves' on the Hub object are likely the FULL list. 
+                                The 'peripherals' list contains the grouped ones. 
+                                We should display peripherals, and then 'Hub Entities' for any remaining?
+                                Actually, the user wants "Devices listed... click on arrow... see entities".
+                                So we should iterate Peripherals. 
+                                What about sensors NOT in a peripheral? We'll put them in a "Hub Entities" group.
+                                
+                                Optimization: The backend PeripheralResponse includes its sensors/valves.
+                                We should rely on that for the groups.
+                                If there are sensors in selectedHub.sensors that are NOT in any peripheral, we show them.
+                                To keep it simple for now, we'll just show the Peripherals list 
+                                and a "Hub / Main Unit" group for directly attached items if we can distinguish them.
+                                
+                                Update: The user said "on esp it is called unit, but I would like to call it device".
+                                So 'unit' = 'peripheral'.
+                            */}
+
+                            {/* Calculated "Hub" group for sensors/valves that might not be in a peripheral object 
+                                 (or if we just want to treat the Hub itself as a Device)
+                             */}
+                            <DeviceGroup
+                                device={{
+                                    id: 'hub_main',
+                                    device_id: selectedHub.device_id,
+                                    name: selectedHub.name || "Hub Main Unit",
+                                    // Filter out sensors/valves that are already in peripherals to avoid duplication?
+                                    // For now, let's assume the backend might send everything in top lists.
+                                    // Let's rely on the lists.
+                                    // Actually, to avoid complexity, let's just show 'peripherals'. 
+                                    // BUT, we might have sensors directly on the Hub (like system stats?).
+                                    // Let's render a "Hub Entities" group using the top-level arrays 
+                                    // MINUS what's in peripherals? Or just render the top-level arrays as "All Entities" or "Hub Entities"?
+                                    // The user request implies a hierarchy.
+
+                                    // Let's create a "Hub Onboard" device for items not in peripherals
+                                    sensors: selectedHub.sensors.filter(s => !s.peripheral_id),
+                                    valves: selectedHub.valves.filter(v => !v.peripheral_id)
+                                } as any}
+                                onToggleValve={handleToggleValve}
+                                titleOverride="Hub Onboard"
+                                forceOpen={true}
+                            />
                         </div>
 
                         <div className="mt-8 flex justify-between items-center">
@@ -285,10 +378,26 @@ export default function DevicesPage() {
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                                            Online
-                                        </span>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${hub.is_online ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}>
+                                                <div className={`w-1.5 h-1.5 rounded-full ${hub.is_online ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                                                {hub.is_online ? 'Online' : 'Offline'}
+                                            </span>
+                                            {hub.is_online && hub.wifi_rssi !== null && (
+                                                <span className="text-[10px] text-gray-400 font-mono">
+                                                    RSSI: {hub.wifi_rssi} dBm
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="mt-2 text-xs text-gray-500 space-y-1">
+                                            {hub.uptime !== null && (
+                                                <p>Uptime: {Math.floor(hub.uptime / 3600)}h {Math.floor((hub.uptime % 3600) / 60)}m</p>
+                                            )}
+                                            {hub.last_seen && (
+                                                <p>Last seen: {new Date(hub.last_seen).toLocaleString()}</p>
+                                            )}
+                                        </div>
 
                                         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
                                             <p className="text-sm font-medium text-gray-500 mb-2">Live Status:</p>

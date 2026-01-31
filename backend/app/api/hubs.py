@@ -26,6 +26,8 @@ class HubValveState(BaseModel):
 class HubDataPayload(BaseModel):
     readings: List[HubSensorReading] = []
     valves: List[HubValveState] = []
+    uptime: Optional[int] = None
+    wifi_rssi: Optional[int] = None
 
 async def verify_hub_api_key(
     x_hub_api_key: Optional[str] = Header(None),
@@ -156,8 +158,12 @@ async def receive_hub_data(
     Let's assume `sensor_id` sent by hub is unique within the hub context, or globally unique (Zigbee MAC).
     """
     
-    # Update hub last seen
+    # Update hub last seen and metrics
     hub.last_seen = datetime.utcnow()
+    if payload.uptime is not None:
+        hub.uptime = payload.uptime
+    if payload.wifi_rssi is not None:
+        hub.wifi_rssi = payload.wifi_rssi
     
     # Process readings
     for reading in payload.readings:
