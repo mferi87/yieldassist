@@ -126,8 +126,18 @@ const DeviceGroup = ({ device, onToggleValve, onRename, titleOverride, forceOpen
 
             {isOpen && (
                 <div className="p-2 space-y-1">
-                    {/* Valves First */}
-                    {device.valves?.map(valve => (
+                    {/* Valves First - Sorted Alphabetically */}
+                    {[...(device.valves || [])].sort((a, b) => {
+                        const nameA = device.name ? `Valve ${a.device_id.split(':').pop()}` : (a.device_id || '');
+                        const nameB = device.name ? `Valve ${b.device_id.split(':').pop()}` : (b.device_id || '');
+                        // If Valve has a 'name' property in the future, usage would be a.name || ...
+                        // Currently Valve interface definition in this file doesn't show 'name' explicitly but the backend has it?
+                        // Let's check interface Valve. It does NOT have name. But let's check.
+                        // Actually, the user wants "entities" sorted.
+                        // Backend sends "name" for valves if set?
+                        // Let's rely on ID suffix if name is missing.
+                        return nameA.localeCompare(nameB);
+                    }).map(valve => (
                         <div key={valve.id} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-colors group">
                             <div className="flex items-center gap-3 pl-2">
                                 <div className={`w-2 h-2 rounded-full ${valve.is_open ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-gray-300 dark:bg-gray-600'}`} />
@@ -156,8 +166,12 @@ const DeviceGroup = ({ device, onToggleValve, onRename, titleOverride, forceOpen
                         </div>
                     ))}
 
-                    {/* Sensors */}
-                    {device.sensors?.map(sensor => (
+                    {/* Sensors - Sorted Alphabetically */}
+                    {[...(device.sensors || [])].sort((a, b) => {
+                        const nameA = a.sensor_type || '';
+                        const nameB = b.sensor_type || '';
+                        return nameA.localeCompare(nameB);
+                    }).map(sensor => (
                         <div key={sensor.id} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-colors group">
                             <div className="flex items-center gap-3 pl-2">
                                 <span className={`w-2 h-2 rounded-full ${sensor.is_online ? 'bg-blue-500 animate-pulse' : 'bg-red-500'}`} />
@@ -194,6 +208,10 @@ export default function DevicesPage() {
         try {
             const res = await api.get('/api/hubs/my-hubs')
             const allHubs: Hub[] = res.data
+
+            // Sort Hubs by Name or Device ID
+            allHubs.sort((a, b) => (a.name || a.device_id || '').localeCompare(b.name || b.device_id || ''))
+
             setPendingHubs(allHubs.filter(h => !h.is_approved))
             setMyHubs(allHubs.filter(h => h.is_approved))
         } catch (err) {
@@ -298,15 +316,17 @@ export default function DevicesPage() {
                         </div>
 
                         <div className="space-y-4">
-                            {/* Grouped by Device (Peripheral) */}
-                            {selectedHub.peripherals && selectedHub.peripherals.map(peripheral => (
-                                <DeviceGroup
-                                    key={peripheral.id}
-                                    device={peripheral}
-                                    onToggleValve={handleToggleValve}
-                                    onRename={handleRenamePeripheral}
-                                />
-                            ))}
+                            {/* Grouped by Device (Peripheral) - Sorted Alphabetically */}
+                            {[...(selectedHub.peripherals || [])]
+                                .sort((a, b) => (a.name || a.device_id || '').localeCompare(b.name || b.device_id || ''))
+                                .map(peripheral => (
+                                    <DeviceGroup
+                                        key={peripheral.id}
+                                        device={peripheral}
+                                        onToggleValve={handleToggleValve}
+                                        onRename={handleRenamePeripheral}
+                                    />
+                                ))}
 
                             {/* Standalone Entities (Hub Sensors/Valves not in a peripheral) */}
                             {/* We need to filter sensors/valves that are NOT part of a peripheral if the backend duplicates them, 
