@@ -1,0 +1,37 @@
+# YieldAssist Bridge Configuration
+
+cloud:
+  # YieldAssist backend URL
+  url: "https://your-yieldassist-server.com"
+  
+  # Hub device ID (unique identifier for this hub)
+  device_id: "smhub-garden-01"
+  
+  # Your YieldAssist account email (for registration)
+  email: "your-email@example.com"
+  
+  # Hub API key (leave as placeholder - will be set automatically after approval)
+  api_key: "your-hub-api-key-here"
+  
+  # How often to batch-send sensor data (seconds)
+  batch_interval: 10
+
+mqtt:
+  # MQTT broker connection
+  host: "localhost"
+  port: 1883
+  username: ""  # Leave empty if no auth
+  password: ""
+  # Zigbee2MQTT topic prefix
+  topic_prefix: "zigbee2mqtt"
+
+# Device mappings (Zigbee2MQTT friendly_name -> YieldAssist device_id)
+# If not specified, friendly_name is used as device_id
+devices: {}
+  # Example:
+  # "Soil Sensor Garden": "soil_sensor_1"
+  # "Water Valve Tomatoes": "valve_1"
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR

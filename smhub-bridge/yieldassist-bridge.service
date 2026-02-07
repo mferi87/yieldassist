@@ -1,0 +1,14 @@
+[Unit]
+Description=YieldAssist SMHUB Bridge
+After=network.target mosquitto.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/yieldassist-bridge
+ExecStart=/usr/bin/python3 /opt/yieldassist-bridge/bridge.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
