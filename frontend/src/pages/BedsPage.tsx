@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useGardenStore, type Bed } from '../store/gardenStore'
 import { useCropStore, type Crop, type CropPlacement } from '../store/cropStore'
 import { useThemeStore } from '../store/themeStore'
+import { useDeviceStore } from '../store/deviceStore'
 import { Loader2, Plus, Edit, Eye, Trash2, Settings, RotateCw, ZoomIn, ZoomOut, Maximize } from 'lucide-react'
 
 // Color palette for crops
@@ -28,6 +29,7 @@ export default function BedsPage() {
     const [searchParams] = useSearchParams()
     const { currentGarden, beds, zones, fetchGarden, fetchBeds, fetchZones, createZone, updateZone, deleteZone, isLoading } = useGardenStore()
     const { crops, placements, fetchCrops, fetchPlacements, createPlacement, deletePlacement, updatePlacement } = useCropStore()
+    const { devices, fetchDevices, updateDevice } = useDeviceStore()
     const { isDark } = useThemeStore()
     const [selectedBed, setSelectedBed] = useState<Bed | null>(null)
     const [editMode, setEditMode] = useState<'view' | 'crops' | 'zones'>('view')
@@ -60,6 +62,7 @@ export default function BedsPage() {
             fetchGarden(gardenId)
             fetchBeds(gardenId)
             fetchCrops()
+            fetchDevices()
         }
     }, [gardenId, fetchGarden, fetchBeds, fetchCrops])
 
@@ -975,202 +978,291 @@ export default function BedsPage() {
                     </div>
                 )}
 
-                {editMode === 'zones' && selectedBed && (
-                    <div className="w-72 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 shrink-0 flex flex-col">
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Zone Editor</h3>
+                <div className="w-72 bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 shrink-0 flex flex-col h-full overflow-hidden">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4 shrink-0">Zone Editor</h3>
 
-                        {!zoneSelectionMode ? (
-                            <>
-                                {/* Zone List Mode */}
-                                <button
-                                    onClick={() => {
-                                        setCurrentZone({ name: '', color: '#4CAF50' })
-                                        setZoneSelectionMode(true)
-                                        setSelectedPlacements(new Set())
-                                    }}
-                                    className="w-full flex items-center gap-2 p-3 rounded-xl bg-primary-50 dark:bg-dark-selected text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-dark-bg transition-colors mb-4"
-                                >
-                                    <Plus className="w-4 h-4" />
-                                    New Zone
-                                </button>
+                    {!zoneSelectionMode ? (
+                        <div className="flex flex-col h-full overflow-hidden">
+                            {/* Zone List Mode */}
+                            <button
+                                onClick={() => {
+                                    setCurrentZone({ name: '', color: '#4CAF50' })
+                                    setZoneSelectionMode(true)
+                                    setSelectedPlacements(new Set())
+                                }}
+                                className="w-full flex items-center gap-2 p-3 rounded-xl bg-primary-50 dark:bg-dark-selected text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-dark-bg transition-colors mb-4 shrink-0"
+                            >
+                                <Plus className="w-4 h-4" />
+                                New Zone
+                            </button>
 
-                                {zones.length === 0 ? (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-8">
-                                        No zones created yet. Click "New Zone" to create one.
-                                    </p>
-                                ) : (
-                                    <div className="space-y-2 flex-1 overflow-y-auto">
-                                        {zones.map((zone) => {
-                                            const zonePlacements = placements.filter(p => p.zone_id === zone.id)
-                                            return (
-                                                <div
-                                                    key={zone.id}
-                                                    className="p-3 rounded-xl bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700"
-                                                >
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <div
-                                                                className="w-4 h-4 rounded-full"
-                                                                style={{ backgroundColor: zone.color }}
-                                                            />
-                                                            <span className="font-medium text-gray-900 dark:text-gray-100">{zone.name}</span>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => deleteZone(zone.id)}
-                                                            className="text-red-400 hover:text-red-600"
-                                                        >
-                                                            <Trash2 className="w-3 h-3" />
-                                                        </button>
+                            {zones.length === 0 ? (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-8">
+                                    No zones created yet. Click "New Zone" to create one.
+                                </p>
+                            ) : (
+                                <div className="space-y-4 flex-1 overflow-y-auto min-h-0">
+                                    {zones.map((zone) => {
+                                        const zonePlacements = placements.filter(p => p.zone_id === zone.id)
+                                        const zoneDevices = devices.filter(d => d.zone_id === zone.id) // Need to import devices from store
+
+                                        return (
+                                            <div
+                                                key={zone.id}
+                                                className="p-3 rounded-xl bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-gray-700"
+                                            >
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <div
+                                                            className="w-4 h-4 rounded-full"
+                                                            style={{ backgroundColor: zone.color }}
+                                                        />
+                                                        <span className="font-medium text-gray-900 dark:text-gray-100">{zone.name}</span>
                                                     </div>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                        {zonePlacements.length} planted area{zonePlacements.length !== 1 ? 's' : ''}
-                                                    </p>
+                                                    <button
+                                                        onClick={() => deleteZone(zone.id)}
+                                                        className="text-red-400 hover:text-red-600"
+                                                    >
+                                                        <Trash2 className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                                                    {zonePlacements.length} planted area{zonePlacements.length !== 1 ? 's' : ''}
+                                                </p>
+                                                <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                                                    {zoneDevices.length > 0 ? (
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {zoneDevices.map(d => (
+                                                                <span key={d.id} className="bg-white dark:bg-dark-surface px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-600">
+                                                                    {d.friendly_name || d.ieee_address}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="italic text-gray-400">No devices assigned</span>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex gap-2">
                                                     <button
                                                         onClick={() => {
                                                             setCurrentZone({ id: zone.id, name: zone.name, color: zone.color })
                                                             setZoneSelectionMode(true)
                                                             setSelectedPlacements(new Set(zonePlacements.map(p => p.id)))
                                                         }}
-                                                        className="mt-2 text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                                                        className="flex-1 px-2 py-1.5 rounded-lg bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-600 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-selected transition-colors"
                                                     >
-                                                        Edit selections
+                                                        Edit Area
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            // Open device selection (could be a modal or expanded view)
+                                                            // For now, let's toggle a "device edit" mode or expand generic "Edit"
+                                                            // Actually, easiest is to handle device assignment in the Zone Edit mode
+                                                            setCurrentZone({ id: zone.id, name: zone.name, color: zone.color })
+                                                            setZoneSelectionMode(true)
+                                                            setSelectedPlacements(new Set(zonePlacements.map(p => p.id)))
+                                                            // We'll add device selection to the edit view
+                                                        }}
+                                                        className="flex-1 px-2 py-1.5 rounded-lg bg-white dark:bg-dark-surface border border-gray-200 dark:border-gray-600 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-selected transition-colors"
+                                                    >
+                                                        Devices
                                                     </button>
                                                 </div>
-                                            )
-                                        })}
-                                    </div>
-                                )}
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
-                                    Zones group planted areas for sensor and irrigation control.
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col h-full overflow-hidden">
+                            {/* Selection Mode */}
+                            <div className="mb-4 p-3 rounded-xl bg-primary-50 dark:bg-primary-900/30 shrink-0">
+                                <p className="text-sm font-medium text-primary-900 dark:text-primary-100 mb-1">
+                                    {currentZone?.id ? 'Edit Zone' : 'Create Zone'}
                                 </p>
-                            </>
-                        ) : (
-                            <>
-                                {/* Selection Mode */}
-                                <div className="mb-4 p-3 rounded-xl bg-primary-50 dark:bg-primary-900/30">
-                                    <p className="text-sm font-medium text-primary-900 dark:text-primary-100 mb-1">
-                                        {currentZone?.id ? 'Edit Zone' : 'Create Zone'}
-                                    </p>
-                                    <p className="text-xs text-primary-700 dark:text-primary-300">
-                                        Click on planted areas to add/remove from this zone
-                                    </p>
+                                <p className="text-xs text-primary-700 dark:text-primary-300">
+                                    Select areas on grid. Assign devices below.
+                                </p>
+                            </div>
+
+                            <div className="space-y-4 flex-1 overflow-y-auto min-h-0">
+                                <div>
+                                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Zone Name</label>
+                                    <input
+                                        type="text"
+                                        value={currentZone?.name || ''}
+                                        onChange={(e) => setCurrentZone(prev => prev ? { ...prev, name: e.target.value } : null)}
+                                        className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100"
+                                        placeholder="e.g., West Section"
+                                    />
                                 </div>
 
-                                <div className="space-y-4 flex-1 overflow-y-auto">
-                                    <div>
-                                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Zone Name</label>
-                                        <input
-                                            type="text"
-                                            value={currentZone?.name || ''}
-                                            onChange={(e) => setCurrentZone(prev => prev ? { ...prev, name: e.target.value } : null)}
-                                            className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-bg text-gray-900 dark:text-gray-100"
-                                            placeholder="e.g., West Section"
-                                        />
+                                <div>
+                                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-2">Zone Color</label>
+                                    <div className="grid grid-cols-5 gap-2">
+                                        {['#4CAF50', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FFC107', '#F44336', '#8BC34A', '#607D8B'].map((color) => (
+                                            <button
+                                                key={color}
+                                                onClick={() => setCurrentZone(prev => prev ? { ...prev, color } : null)}
+                                                className={`w-8 h-8 rounded-full transition-transform ${currentZone?.color === color ? 'ring-2 ring-offset-2 ring-primary-500 dark:ring-offset-dark-surface scale-110' : ''}`}
+                                                style={{ backgroundColor: color }}
+                                            />
+                                        ))}
                                     </div>
+                                </div>
 
-                                    <div>
-                                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-2">Zone Color</label>
-                                        <div className="grid grid-cols-5 gap-2">
-                                            {['#4CAF50', '#2196F3', '#FF9800', '#E91E63', '#9C27B0', '#00BCD4', '#FFC107', '#F44336', '#8BC34A', '#607D8B'].map((color) => (
-                                                <button
-                                                    key={color}
-                                                    onClick={() => setCurrentZone(prev => prev ? { ...prev, color } : null)}
-                                                    className={`w-8 h-8 rounded-full transition-transform ${currentZone?.color === color ? 'ring-2 ring-offset-2 ring-primary-500 dark:ring-offset-dark-surface scale-110' : ''}`}
-                                                    style={{ backgroundColor: color }}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Selected planted areas:</p>
-                                        {selectedPlacements.size === 0 ? (
-                                            <p className="text-xs text-gray-400 italic">None selected</p>
+                                {/* Device Assignment Section */}
+                                <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-2">Assigned Devices</label>
+                                    <div className="bg-gray-50 dark:bg-dark-bg rounded-xl border border-gray-200 dark:border-gray-700 p-2 max-h-40 overflow-y-auto space-y-2">
+                                        {devices.length === 0 ? (
+                                            <p className="text-xs text-gray-400 italic text-center">No devices found</p>
                                         ) : (
-                                            <div className="space-y-1">
-                                                {Array.from(selectedPlacements).map(placementId => {
-                                                    const placement = placements.find(p => p.id === placementId)
-                                                    return placement ? (
-                                                        <div key={placementId} className="text-xs text-gray-600 dark:text-gray-300 flex items-center gap-2">
-                                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getCropColor(placement.crop_id) }} />
-                                                            {placement.crop.name}
+                                            devices
+                                                .filter(d => !d.zone_id || d.zone_id === currentZone?.id) // Show unassigned or assigned to this zone
+                                                .map(device => {
+                                                    const isAssigned = device.zone_id === currentZone?.id
+                                                    return (
+                                                        <div
+                                                            key={device.id}
+                                                            onClick={async () => {
+                                                                // Toggle assignment immediately logic? 
+                                                                // No, we should probably save on "Save"
+                                                                // But updating device needs an API call for each device 
+                                                                // Or we can track pending device updates in state
+                                                                // For now, let's just use local state to track pending changes if possible
+                                                                // But updateDevice is async.
+                                                                // Let's toggle immediately but visual feedback?
+                                                                // Actually, 'devices' comes from store. 
+                                                                // If we update store via API it refreshes.
+                                                                // But we only have zone ID *after* saving if it's new.
+                                                                // So we can only assign devices to *existing* zones easily here.
+                                                                // Use pending state for devices?
+                                                                // For MVP: Enable device toggling only if currentZone.id exists.
+                                                                if (!currentZone?.id) return // Can't assign to unsaved zone yet
+
+                                                                try {
+                                                                    const newZoneId = isAssigned ? null : currentZone.id
+                                                                    await updateDevice(device.id, { zone_id: newZoneId })
+                                                                } catch (e) {
+                                                                    console.error("Failed to update device", e)
+                                                                }
+                                                            }}
+                                                            className={`p-2 rounded-lg border text-xs cursor-pointer transition-colors flex items-center justify-between ${isAssigned
+                                                                ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-700'
+                                                                : 'bg-white dark:bg-dark-surface border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-dark-selected'
+                                                                }`}
+                                                        >
+                                                            <div>
+                                                                <p className="font-medium text-gray-900 dark:text-gray-100">{device.friendly_name || device.ieee_address}</p>
+                                                                <p className="text-[10px] text-gray-500">{device.vendor} {device.model}</p>
+                                                            </div>
+                                                            {isAssigned && <div className="w-2 h-2 rounded-full bg-primary-500"></div>}
                                                         </div>
-                                                    ) : null
-                                                })}
-                                            </div>
+                                                    )
+                                                })
                                         )}
                                     </div>
+                                    {!currentZone?.id && (
+                                        <p className="text-[10px] text-amber-500 mt-1">Save zone first to assign devices.</p>
+                                    )}
                                 </div>
 
-                                <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                    <button
-                                        onClick={() => {
+                                <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Selected planted areas:</p>
+                                    {selectedPlacements.size === 0 ? (
+                                        <p className="text-xs text-gray-400 italic">None selected</p>
+                                    ) : (
+                                        <div className="space-y-1">
+                                            {Array.from(selectedPlacements).map(placementId => {
+                                                const placement = placements.find(p => p.id === placementId)
+                                                return placement ? (
+                                                    <div key={placementId} className="text-xs text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getCropColor(placement.crop_id) }} />
+                                                        {placement.crop.name}
+                                                    </div>
+                                                ) : null
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
+                                <button
+                                    onClick={() => {
+                                        setZoneSelectionMode(false)
+                                        setCurrentZone(null)
+                                        setSelectedPlacements(new Set())
+                                    }}
+                                    className="flex-1 px-4 py-2 rounded-xl bg-gray-100 dark:bg-dark-bg text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-dark-selected transition-colors text-sm font-medium"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        if (!currentZone || !currentZone.name) return
+
+                                        try {
+                                            // Create or get zone ID
+                                            let zoneId = currentZone.id
+                                            if (!zoneId) {
+                                                const newZone = await createZone({
+                                                    bed_id: selectedBed.id,
+                                                    name: currentZone.name,
+                                                    color: currentZone.color
+                                                })
+                                                zoneId = newZone.id
+                                            } else {
+                                                // Update existing zone
+                                                await updateZone(zoneId, {
+                                                    name: currentZone.name,
+                                                    color: currentZone.color
+                                                })
+                                            }
+
+                                            // Update all placements' zone assignments   
+                                            for (const placement of placements) {
+                                                const shouldBeInZone = selectedPlacements.has(placement.id)
+                                                const isInZone = placement.zone_id === zoneId
+
+                                                if (shouldBeInZone && !isInZone) {
+                                                    // Add to zone
+                                                    await updatePlacement(placement.id, { zone_id: zoneId })
+                                                } else if (!shouldBeInZone && isInZone) {
+                                                    // Remove from zone
+                                                    await updatePlacement(placement.id, { zone_id: null })
+                                                }
+                                            }
+
+                                            // Refresh data
+                                            await fetchPlacements(selectedBed.id)
+                                            await fetchZones(selectedBed.id)
+                                            // Fetch devices strictly speaking not needed unless we did device updates, 
+                                            // which we do immediately on click. 
+                                            // But maybe we should fetch devices to be safe if other users changed things.
+                                            await fetchDevices()
+
+                                            // Exit selection mode
                                             setZoneSelectionMode(false)
                                             setCurrentZone(null)
                                             setSelectedPlacements(new Set())
-                                        }}
-                                        className="flex-1 px-4 py-2 rounded-xl bg-gray-100 dark:bg-dark-bg text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-dark-selected transition-colors text-sm font-medium"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={async () => {
-                                            if (!currentZone || !currentZone.name) return
+                                        } catch (error) {
+                                            console.error('Failed to save zone:', error)
+                                        }
+                                    }}
+                                    disabled={!currentZone?.name}
+                                    className="flex-1 px-4 py-2 rounded-xl bg-primary-600 text-white hover:bg-primary-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                                >
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
 
-                                            try {
-                                                // Create or get zone ID
-                                                let zoneId = currentZone.id
-                                                if (!zoneId) {
-                                                    const newZone = await createZone({
-                                                        bed_id: selectedBed.id,
-                                                        name: currentZone.name,
-                                                        color: currentZone.color
-                                                    })
-                                                    zoneId = newZone.id
-                                                } else {
-                                                    // Update existing zone
-                                                    await updateZone(zoneId, {
-                                                        name: currentZone.name,
-                                                        color: currentZone.color
-                                                    })
-                                                }
-
-                                                // Update all placements' zone assignments   
-                                                for (const placement of placements) {
-                                                    const shouldBeInZone = selectedPlacements.has(placement.id)
-                                                    const isInZone = placement.zone_id === zoneId
-
-                                                    if (shouldBeInZone && !isInZone) {
-                                                        // Add to zone
-                                                        await updatePlacement(placement.id, { zone_id: zoneId })
-                                                    } else if (!shouldBeInZone && isInZone) {
-                                                        // Remove from zone
-                                                        await updatePlacement(placement.id, { zone_id: null })
-                                                    }
-                                                }
-
-                                                // Refresh data
-                                                await fetchPlacements(selectedBed.id)
-                                                await fetchZones(selectedBed.id)
-
-                                                // Exit selection mode
-                                                setZoneSelectionMode(false)
-                                                setCurrentZone(null)
-                                                setSelectedPlacements(new Set())
-                                            } catch (error) {
-                                                console.error('Failed to save zone:', error)
-                                            }
-                                        }}
-                                        disabled={!currentZone?.name}
-                                        className="flex-1 px-4 py-2 rounded-xl bg-primary-600 text-white hover:bg-primary-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-                                    >
-                                        Save
-                                    </button>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                )}
             </div>
 
             {/* Placement Edit Popup */}

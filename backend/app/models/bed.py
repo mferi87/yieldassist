@@ -33,7 +33,6 @@ class Zone(Base):
     
     # Relationships
     bed = relationship("Bed", back_populates="zones")
-    sensors = relationship("Sensor", back_populates="zone", cascade="all, delete-orphan")
-    valves = relationship("Valve", back_populates="zone", cascade="all, delete-orphan")
+    zigbee_devices = relationship("ZigbeeDevice", back_populates="zone")
     crop_placements = relationship("CropPlacement", back_populates="zone")
 

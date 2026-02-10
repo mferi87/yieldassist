@@ -3,7 +3,10 @@ from app.models.user import User
 from app.models.garden import Garden, GardenMember, MemberRole
 from app.models.bed import Bed, Zone
 from app.models.crop import Crop, CropPlacement, CropStatus
-from app.models.device import Sensor, Valve, SensorType
+
+from app.models.hub import Hub, HubStatus
+from app.models.device_zigbee import ZigbeeDevice
+from app.models.automation import Automation
 
 __all__ = [
     "User",
@@ -15,7 +18,8 @@ __all__ = [
     "Crop",
     "CropPlacement",
     "CropStatus",
-    "Sensor",
-    "Valve",
-    "SensorType",
+    "Hub",
+    "HubStatus",
+    "ZigbeeDevice",
+    "Automation",
 ]

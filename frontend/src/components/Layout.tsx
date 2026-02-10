@@ -2,7 +2,7 @@ import { Outlet, NavLink, useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
-import { LayoutGrid, Layers, Sprout, LogOut, User, ChevronDown, Moon, Sun } from 'lucide-react'
+import { LayoutGrid, Layers, Sprout, LogOut, User, ChevronDown, Moon, Sun, Router } from 'lucide-react'
 import { useState } from 'react'
 
 export default function Layout() {
@@ -105,6 +105,29 @@ export default function Layout() {
 
                                         {user?.is_global_admin && (
                                             <>
+                                                {/* Divider */}
+                                                <div className="h-px bg-gray-100 dark:bg-gray-700 my-1"></div>
+
+                                                <NavLink
+                                                    to="/hubs"
+                                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-dark-bg mb-1"
+                                                    onClick={() => setShowUserMenu(false)}
+                                                >
+                                                    <Router className="w-4 h-4 ml-0.5" />
+                                                    Hub Management
+                                                </NavLink>
+
+                                                <NavLink
+                                                    to="/automations"
+                                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-dark-bg mb-1"
+                                                    onClick={() => setShowUserMenu(false)}
+                                                >
+                                                    <div className="w-4 h-4 flex items-center justify-center">
+                                                        <Layers className="w-3 h-3" />
+                                                    </div>
+                                                    Automations
+                                                </NavLink>
+
                                                 {/* Divider */}
                                                 <div className="h-px bg-gray-100 dark:bg-gray-700 my-1"></div>
 

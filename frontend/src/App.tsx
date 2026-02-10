@@ -8,6 +8,9 @@ import OverviewPage from './pages/OverviewPage'
 import BedsPage from './pages/BedsPage'
 import CropsPage from './pages/CropsPage'
 import AdminPage from './pages/AdminPage'
+import HubsPage from './pages/HubsPage'
+import ZigbeeDevicesPage from './pages/ZigbeeDevicesPage'
+import AutomationEditor from './pages/AutomationEditor'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated } = useAuthStore()
@@ -28,7 +31,10 @@ function App() {
                 }
             >
                 <Route index element={<GardensPage />} />
+                <Route path="hubs" element={<HubsPage />} />
+                <Route path="hubs/:hubId/devices" element={<ZigbeeDevicesPage />} />
                 <Route path="admin" element={<AdminPage />} />
+                <Route path="automations" element={<AutomationEditor />} />
                 <Route path="garden/:gardenId" element={<OverviewPage />} />
                 <Route path="garden/:gardenId/beds" element={<BedsPage />} />
                 <Route path="garden/:gardenId/crops" element={<CropsPage />} />
