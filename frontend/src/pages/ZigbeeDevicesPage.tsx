@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { api } from "../api/client";
 import { ArrowLeft, RefreshCw, Cpu, Activity, Signal, Eye, EyeOff, MoreHorizontal, X, Power, Save } from 'lucide-react'
@@ -25,15 +25,24 @@ export default function ZigbeeDevicesPage() {
     const [selectedDevice, setSelectedDevice] = useState<ZigbeeDevice | null>(null)
     const [numericInputs, setNumericInputs] = useState<Record<string, string>>({})
 
+    // Ref to track the currently selected device ID to avoid race conditions in async fetchDevices
+    const selectedDeviceIdRef = useRef<string | null>(null)
+
+    // Sync ref with state
+    useEffect(() => {
+        selectedDeviceIdRef.current = selectedDevice?.id || null
+    }, [selectedDevice])
+
     const fetchDevices = async () => {
         setIsLoading(true)
         setError(null)
         try {
             const response = await api.get(`/api/hubs/${hubId}/devices`)
             setDevices(response.data)
-            // Update selected device if it's open, to get latest state
-            if (selectedDevice) {
-                const updated = response.data.find((d: ZigbeeDevice) => d.id === selectedDevice.id)
+
+            // Check against ref to see if device is still selected/open
+            if (selectedDeviceIdRef.current) {
+                const updated = response.data.find((d: ZigbeeDevice) => d.id === selectedDeviceIdRef.current)
                 if (updated) setSelectedDevice(updated)
             }
         } catch (err: any) {
