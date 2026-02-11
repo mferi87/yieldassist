@@ -165,6 +165,26 @@ export default function ZigbeeDevicesPage() {
             )
         }
 
+        // Enum - Show buttons for each value
+        if (expose.type === 'enum' && expose.values) {
+            return (
+                <div className="mt-2 flex flex-wrap gap-2">
+                    {expose.values.map((option: string) => (
+                        <button
+                            key={option}
+                            onClick={() => sendCommand(property, option)}
+                            className={`px-3 py-1 text-xs border rounded-full shadow-sm transition-colors ${value === option
+                                ? 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/40 dark:border-indigo-700 dark:text-indigo-300 font-medium'
+                                : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
+                                }`}
+                        >
+                            {option}
+                        </button>
+                    ))}
+                </div>
+            )
+        }
+
         // Numeric - Show input and Set button
         if (expose.type === 'numeric') {
             const inputKey = `${selectedDevice?.id}-${property}`
