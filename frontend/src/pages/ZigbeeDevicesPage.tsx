@@ -386,10 +386,11 @@ export default function ZigbeeDevicesPage() {
                             <div>
                                 <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3 uppercase tracking-wider">Entities</h3>
                                 <div className="grid gap-4 sm:grid-cols-2">
-                                    {(function renderExposes(exposes: any[]) {
+                                    {(function renderExposes(exposes: any[], pathPrefix: string = 'root') {
                                         return exposes?.flatMap((expose, idx) => {
+                                            const currentPath = `${pathPrefix}-${idx}`
                                             if (expose.features) {
-                                                return renderExposes(expose.features)
+                                                return renderExposes(expose.features, currentPath)
                                             }
 
                                             const property = expose.property || expose.name
@@ -399,7 +400,7 @@ export default function ZigbeeDevicesPage() {
                                             const value = selectedDevice.state?.[property]
 
                                             return (
-                                                <div key={`${property}-${idx}`} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50/50 dark:bg-gray-800/50">
+                                                <div key={currentPath} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50/50 dark:bg-gray-800/50">
                                                     <div className="flex justify-between items-start mb-2">
                                                         <span className="text-xs font-semibold text-gray-500 uppercase">{expose.label || property}</span>
                                                         {expose.access && (
