@@ -52,6 +52,12 @@ export default function ZigbeeDevicesPage() {
         }
     }
 
+    useEffect(() => {
+        if (hubId) {
+            fetchDevices()
+        }
+    }, [hubId])
+
     const toggleTracking = async (device: ZigbeeDevice) => {
         try {
             const newStatus = !device.is_tracked
@@ -81,51 +87,57 @@ export default function ZigbeeDevicesPage() {
         }
     }
 
+    const getValueByPath = (obj: any, path: string) => {
+        if (!obj || !path) return undefined
+        return path.split('.').reduce((acc, part) => acc && acc[part], obj)
+    }
+
+    const createNestedObject = (path: string, value: any) => {
+        const parts = path.split('.')
+        const root = {} as any
+        let current = root
+        for (let i = 0; i < parts.length - 1; i++) {
+            current[parts[i]] = {}
+            current = current[parts[i]]
+        }
+        current[parts[parts.length - 1]] = value
+        return root
+    }
+
     const sendCommand = async (property: string, value: any) => {
         if (!selectedDevice) return;
 
         try {
             // Optimistic update
-            const updatedState = { ...selectedDevice.state, [property]: value }
-            const updatedDevice = { ...selectedDevice, state: updatedState }
+            // We need to deeply merge the state update
+            const newState = { ...selectedDevice.state }
+            const parts = property.split('.')
+            let current = newState
+            for (let i = 0; i < parts.length - 1; i++) {
+                if (!current[parts[i]]) current[parts[i]] = {}
+                current[parts[i]] = { ...current[parts[i]] } // Copy for immutability
+                current = current[parts[i]]
+            }
+            current[parts[parts.length - 1]] = value
+
+            const updatedDevice = { ...selectedDevice, state: newState }
 
             setSelectedDevice(updatedDevice)
             setDevices(prev => prev.map(d => d.id === selectedDevice.id ? updatedDevice : d))
 
+            const payload = createNestedObject(property, value)
+
             await api.post(`/api/hubs/${hubId}/command`, {
                 ieee_address: selectedDevice.ieee_address,
-                payload: { [property]: value }
+                payload: payload
             })
 
         } catch (err) {
             console.error("Failed to send command", err)
-            alert("Failed to send command")
             // Revert? simpler to just refresh or let next poll fix it
             fetchDevices()
         }
     }
-
-    useEffect(() => {
-        if (hubId) {
-            fetchDevices()
-        }
-    }, [hubId])
-
-    useEffect(() => {
-        if (selectedDevice?.id && hubId) {
-            // Auto-refresh state when opening device details
-            api.post(`/api/hubs/${hubId}/command`, {
-                ieee_address: selectedDevice.ieee_address,
-                payload: {},
-                mode: "get"
-            }).then(() => {
-                // Refresh data after a short delay to capture updated state
-                setTimeout(() => {
-                    fetchDevices()
-                }, 2000)
-            }).catch(err => console.error("Failed to auto-refresh state", err))
-        }
-    }, [selectedDevice?.id, hubId])
 
     const formatDate = (dateString: string) => {
         if (!dateString) return 'Never'
@@ -133,9 +145,10 @@ export default function ZigbeeDevicesPage() {
     }
 
     // Helper to render value controls based on expose type
-    const renderEntityControl = (expose: any) => {
-        const property = expose.property || expose.name
-        const value = selectedDevice?.state?.[property]
+    const renderEntityControl = (expose: any, fullProperty: string) => {
+
+        // property is now passed fully resolved
+        const value = getValueByPath(selectedDevice?.state, fullProperty)
 
         // Check access: bit 2 is SET (write).
         const isReadOnly = (expose.access !== undefined) && ((expose.access & 2) === 0)
@@ -151,7 +164,7 @@ export default function ZigbeeDevicesPage() {
             return (
                 <div className="mt-3 flex gap-2">
                     <button
-                        onClick={() => sendCommand(property, valOn)}
+                        onClick={() => sendCommand(fullProperty, valOn)}
                         className={`flex-1 flex items-center justify-center py-1 text-xs border rounded shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors ${value === valOn || value === true
                             ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:border-green-800 dark:text-green-300'
                             : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
@@ -161,7 +174,7 @@ export default function ZigbeeDevicesPage() {
                         ON
                     </button>
                     <button
-                        onClick={() => sendCommand(property, valOff)}
+                        onClick={() => sendCommand(fullProperty, valOff)}
                         className={`flex-1 flex items-center justify-center py-1 text-xs border rounded shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors ${value === valOff || value === false
                             ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300'
                             : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200'
@@ -181,7 +194,7 @@ export default function ZigbeeDevicesPage() {
                     {expose.values.map((option: string) => (
                         <button
                             key={option}
-                            onClick={() => sendCommand(property, option)}
+                            onClick={() => sendCommand(fullProperty, option)}
                             className={`px-3 py-1 text-xs border rounded-full shadow-sm transition-colors ${value === option
                                 ? 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/40 dark:border-indigo-700 dark:text-indigo-300 font-medium'
                                 : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600'
@@ -196,7 +209,7 @@ export default function ZigbeeDevicesPage() {
 
         // Numeric - Show input and Set button
         if (expose.type === 'numeric') {
-            const inputKey = `${selectedDevice?.id}-${property}`
+            const inputKey = `${selectedDevice?.id}-${fullProperty}`
             const inputValue = numericInputs[inputKey] ?? value ?? ''
 
             const min = expose.value_min ?? 0
@@ -212,22 +225,25 @@ export default function ZigbeeDevicesPage() {
                         step={step}
                         value={inputValue || min}
                         onChange={(e) => setNumericInputs(prev => ({ ...prev, [inputKey]: e.target.value }))}
-                        onMouseUp={() => sendCommand(property, Number(inputValue || min))}
-                        onTouchEnd={() => sendCommand(property, Number(inputValue || min))}
+                        onMouseUp={() => sendCommand(fullProperty, Number(inputValue || min))}
+                        onTouchEnd={() => sendCommand(fullProperty, Number(inputValue || min))}
                         className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-indigo-600"
                     />
-                    <input
-                        type="number"
-                        value={inputValue}
-                        onChange={(e) => setNumericInputs(prev => ({ ...prev, [inputKey]: e.target.value }))}
-                        className="w-20 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-xs dark:bg-gray-700 dark:text-white px-2 py-1 text-right"
-                        placeholder={value?.toString()}
-                        min={min}
-                        max={max}
-                        step={step}
-                    />
+                    <div className="flex items-center">
+                        <input
+                            type="number"
+                            value={inputValue}
+                            onChange={(e) => setNumericInputs(prev => ({ ...prev, [inputKey]: e.target.value }))}
+                            className="w-20 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-xs dark:bg-gray-700 dark:text-white px-2 py-1 text-right"
+                            placeholder={value?.toString()}
+                            min={min}
+                            max={max}
+                            step={step}
+                        />
+                        <span className="ml-1 text-xs text-gray-500">{expose.unit}</span>
+                    </div>
                     <button
-                        onClick={() => sendCommand(property, Number(inputValue))}
+                        onClick={() => sendCommand(fullProperty, Number(inputValue))}
                         disabled={!inputValue}
                         className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
                     >
@@ -415,18 +431,48 @@ export default function ZigbeeDevicesPage() {
                             <div>
                                 <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3 uppercase tracking-wider">Entities</h3>
                                 <div className="grid gap-4 sm:grid-cols-2">
-                                    {(function renderExposes(exposes: any[], pathPrefix: string = 'root') {
+                                    {(function renderExposes(exposes: any[], pathPrefix: string = 'root', parentProperty: string = '') {
                                         return exposes?.flatMap((expose, idx) => {
                                             const currentPath = `${pathPrefix}-${idx}`
-                                            if (expose.features) {
-                                                return renderExposes(expose.features, currentPath)
+
+                                            // Handle Nested Features (e.g. switch type with features, OR composite)
+                                            if (expose.type === 'composite') {
+                                                const compositeProperty = parentProperty ? `${parentProperty}.${expose.property}` : expose.property
+                                                return (
+                                                    <div key={currentPath} className="col-span-full border border-gray-200 dark:border-gray-700 rounded-lg p-6 bg-gray-50/30 dark:bg-gray-800/30">
+                                                        <div className="flex items-center gap-3 mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
+                                                            <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="m8 12 8 0" /></svg>
+                                                            </div>
+                                                            <div>
+                                                                <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                                                                    {expose.label || expose.property}
+                                                                </h3>
+                                                                {expose.description && (
+                                                                    <p className="text-sm text-gray-500 dark:text-gray-400 font-normal mt-0.5">
+                                                                        {expose.description}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-4">
+                                                            {renderExposes(expose.features || [], currentPath, compositeProperty)}
+                                                        </div>
+                                                    </div>
+                                                )
+                                            }
+
+                                            // Recurse for features if any, but regular features usually flatten or are simple
+                                            if (expose.features && expose.type !== 'composite') {
+                                                return renderExposes(expose.features, currentPath, parentProperty)
                                             }
 
                                             const property = expose.property || expose.name
                                             // Handle cases where property might be nested or undefined
                                             if (!property) return null;
 
-                                            const value = selectedDevice.state?.[property]
+                                            const fullProperty = parentProperty ? `${parentProperty}.${property}` : property
+                                            const value = getValueByPath(selectedDevice.state, fullProperty)
 
                                             return (
                                                 <div key={currentPath} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50/50 dark:bg-gray-800/50">
@@ -438,6 +484,9 @@ export default function ZigbeeDevicesPage() {
                                                             </span>
                                                         )}
                                                     </div>
+                                                    {expose.description && (
+                                                        <p className="text-xs text-gray-400 mb-2 truncate" title={expose.description}>{expose.description}</p>
+                                                    )}
                                                     <div className="mt-1 flex items-baseline">
                                                         <span className="text-lg font-medium text-gray-900 dark:text-white">
                                                             {value !== undefined && value !== null ? value.toString() : '-'}
@@ -446,7 +495,7 @@ export default function ZigbeeDevicesPage() {
                                                     </div>
 
                                                     {/* Render Controls */}
-                                                    {renderEntityControl(expose)}
+                                                    {renderEntityControl(expose, fullProperty)}
                                                 </div>
                                             )
                                         })
