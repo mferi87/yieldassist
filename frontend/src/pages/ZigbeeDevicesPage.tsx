@@ -29,7 +29,7 @@ export default function ZigbeeDevicesPage() {
         setIsLoading(true)
         setError(null)
         try {
-            const response = await api.get(`/hubs/${hubId}/devices`)
+            const response = await api.get(`/api/hubs/${hubId}/devices`)
             setDevices(response.data)
             // Update selected device if it's open, to get latest state
             if (selectedDevice) {
@@ -56,7 +56,7 @@ export default function ZigbeeDevicesPage() {
                 setSelectedDevice(prev => prev ? { ...prev, is_tracked: newStatus } : null)
             }
 
-            await api.put(`/devices/${device.id}`, {
+            await api.put(`/api/devices/${device.id}`, {
                 is_tracked: newStatus
             })
         } catch (err) {
@@ -83,7 +83,7 @@ export default function ZigbeeDevicesPage() {
             setSelectedDevice(updatedDevice)
             setDevices(prev => prev.map(d => d.id === selectedDevice.id ? updatedDevice : d))
 
-            await api.post(`/hubs/${hubId}/command`, {
+            await api.post(`/api/hubs/${hubId}/command`, {
                 ieee_address: selectedDevice.ieee_address,
                 payload: { [property]: value }
             })
@@ -105,7 +105,7 @@ export default function ZigbeeDevicesPage() {
     useEffect(() => {
         if (selectedDevice?.id && hubId) {
             // Auto-refresh state when opening device details
-            api.post(`/hubs/${hubId}/command`, {
+            api.post(`/api/hubs/${hubId}/command`, {
                 ieee_address: selectedDevice.ieee_address,
                 payload: {},
                 mode: "get"
@@ -170,16 +170,32 @@ export default function ZigbeeDevicesPage() {
             const inputKey = `${selectedDevice?.id}-${property}`
             const inputValue = numericInputs[inputKey] ?? value ?? ''
 
+            const min = expose.value_min ?? 0
+            const max = expose.value_max ?? 100
+            const step = expose.value_step ?? 1
+
             return (
-                <div className="mt-2 flex gap-2">
+                <div className="mt-2 flex items-center gap-2">
+                    <input
+                        type="range"
+                        min={min}
+                        max={max}
+                        step={step}
+                        value={inputValue || min}
+                        onChange={(e) => setNumericInputs(prev => ({ ...prev, [inputKey]: e.target.value }))}
+                        onMouseUp={() => sendCommand(property, Number(inputValue || min))}
+                        onTouchEnd={() => sendCommand(property, Number(inputValue || min))}
+                        className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-indigo-600"
+                    />
                     <input
                         type="number"
                         value={inputValue}
                         onChange={(e) => setNumericInputs(prev => ({ ...prev, [inputKey]: e.target.value }))}
-                        className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-xs dark:bg-gray-700 dark:text-white px-2 py-1"
+                        className="w-20 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-xs dark:bg-gray-700 dark:text-white px-2 py-1 text-right"
                         placeholder={value?.toString()}
-                        min={expose.value_min}
-                        max={expose.value_max}
+                        min={min}
+                        max={max}
+                        step={step}
                     />
                     <button
                         onClick={() => sendCommand(property, Number(inputValue))}
@@ -345,7 +361,7 @@ export default function ZigbeeDevicesPage() {
                                 <button
                                     onClick={() => {
                                         // Send 'get' command
-                                        api.post(`/hubs/${hubId}/command`, {
+                                        api.post(`/api/hubs/${hubId}/command`, {
                                             ieee_address: selectedDevice.ieee_address,
                                             payload: {},
                                             mode: "get"

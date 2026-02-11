@@ -47,7 +47,7 @@ export const useAutomationStore = create<AutomationStore>((set) => ({
             // The backend /automations endpoint returns all. 
             // The /hubs/{id}/automations endpoint returns specific.
             // Let's support both or just use generic for now.
-            const url = hubId ? `/hubs/${hubId}/automations` : '/automations'
+            const url = hubId ? `/api/hubs/${hubId}/automations` : '/api/automations'
             const response = await api.get(url)
             const data = Array.isArray(response.data) ? response.data : []
             set({ automations: data, isLoading: false })
@@ -59,7 +59,7 @@ export const useAutomationStore = create<AutomationStore>((set) => ({
     createAutomation: async (data) => {
         set({ isLoading: true, error: null })
         try {
-            const response = await api.post('/automations', data)
+            const response = await api.post('/api/automations', data)
             set((state) => ({
                 automations: [...state.automations, response.data],
                 isLoading: false
@@ -74,7 +74,7 @@ export const useAutomationStore = create<AutomationStore>((set) => ({
     updateAutomation: async (id, data) => {
         set({ isLoading: true, error: null })
         try {
-            const response = await api.put(`/automations/${id}`, data)
+            const response = await api.put(`/api/automations/${id}`, data)
             set((state) => ({
                 automations: state.automations.map((a) => (a.id === id ? response.data : a)),
                 isLoading: false
@@ -88,7 +88,7 @@ export const useAutomationStore = create<AutomationStore>((set) => ({
     deleteAutomation: async (id) => {
         set({ isLoading: true, error: null })
         try {
-            await api.delete(`/automations/${id}`)
+            await api.delete(`/api/automations/${id}`)
             set((state) => ({
                 automations: state.automations.filter((a) => a.id !== id),
                 isLoading: false

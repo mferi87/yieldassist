@@ -31,7 +31,7 @@ export const useDeviceStore = create<DeviceStore>((set, get) => ({
     fetchDevices: async () => {
         set({ isLoading: true, error: null })
         try {
-            const response = await api.get('/devices')
+            const response = await api.get('/api/devices')
             const data = Array.isArray(response.data) ? response.data : []
             set({ devices: data, isLoading: false })
         } catch (error: any) {
@@ -41,7 +41,7 @@ export const useDeviceStore = create<DeviceStore>((set, get) => ({
 
     updateDevice: async (id, data) => {
         try {
-            const response = await api.put(`/devices/${id}`, data)
+            const response = await api.put(`/api/devices/${id}`, data)
             set((state) => ({
                 devices: state.devices.map((d) => (d.id === id ? { ...d, ...response.data } : d))
             }))

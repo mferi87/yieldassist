@@ -27,7 +27,7 @@ export const useHubStore = create<HubStore>((set, get) => ({
     fetchHubs: async () => {
         set({ isLoading: true, error: null })
         try {
-            const response = await api.get('/hubs')
+            const response = await api.get('/api/hubs')
 
             // Check if response looks like HTML (wrong URL)
             if (typeof response.data === 'string' && response.data.trim().startsWith('<!DOCTYPE html>')) {
@@ -43,7 +43,7 @@ export const useHubStore = create<HubStore>((set, get) => ({
 
     updateHubStatus: async (hubId, status, name) => {
         try {
-            await api.put(`/hubs/${hubId}/status`, { status, name })
+            await api.put(`/api/hubs/${hubId}/status`, { status, name })
             // Refresh list
             get().fetchHubs()
         } catch (error: any) {
@@ -53,7 +53,7 @@ export const useHubStore = create<HubStore>((set, get) => ({
 
     deleteHub: async (hubId) => {
         try {
-            await api.delete(`/hubs/${hubId}`)
+            await api.delete(`/api/hubs/${hubId}`)
             // Refresh list
             get().fetchHubs()
         } catch (error: any) {
