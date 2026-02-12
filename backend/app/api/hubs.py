@@ -227,22 +227,23 @@ def delete_hub(hub_id: uuid.UUID, db: Session = Depends(get_db)):
     db.delete(hub)
     db.commit()
 
-@router.get("/hubs/{hub_id}/automations", response_model=List[dict]) # utilizing dict for now or AutomationResponse
+@router.get("/hubs/{hub_id}/automations", response_model=List[dict])
 def get_hub_automations(hub_id: uuid.UUID, db: Session = Depends(get_db)):
-    # Verify hub exists and is approved? 
-    # This endpoint might be called by the Hub Agent (needs auth) or Frontend (needs auth).
-    # For Hub Agent, we'd need to validate the token.
-    # For now, let's assume it's open or we rely on some other auth. 
-    # In a real app we'd use `current_user` or `current_hub`.
-    
-    automations = db.query(Automation).filter(Automation.hub_id == hub_id, Automation.enabled == True).all()
-    # Return as list of dicts or Pydantic models
+    """Return all automations for this hub (including disabled ones).
+    The hub agent and frontend both use this endpoint:
+    - Frontend needs all automations to display and toggle enabled state
+    - Hub agent filters enabled ones locally before evaluating
+    """
+    automations = db.query(Automation).filter(Automation.hub_id == hub_id).all()
     return [
         {
             "id": str(a.id),
             "name": a.name,
-            "trigger": a.trigger,
-            "action": a.action
+            "description": a.description,
+            "triggers": a.triggers,
+            "conditions": a.conditions,
+            "actions": a.actions,
+            "enabled": a.enabled
         } for a in automations
     ]
 

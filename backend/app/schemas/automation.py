@@ -4,8 +4,10 @@ from pydantic import BaseModel, UUID4
 
 class AutomationBase(BaseModel):
     name: str
-    trigger: Dict[str, Any]
-    action: Dict[str, Any]
+    description: Optional[str] = None
+    triggers: List[Dict[str, Any]]       # Multiple triggers (OR logic)
+    conditions: List[Dict[str, Any]] = []  # Optional conditions (AND logic)
+    actions: List[Dict[str, Any]]        # Sequential actions
     enabled: bool = True
 
 
@@ -15,8 +17,10 @@ class AutomationCreate(AutomationBase):
 
 class AutomationUpdate(BaseModel):
     name: Optional[str] = None
-    trigger: Optional[Dict[str, Any]] = None
-    action: Optional[Dict[str, Any]] = None
+    description: Optional[str] = None
+    triggers: Optional[List[Dict[str, Any]]] = None
+    conditions: Optional[List[Dict[str, Any]]] = None
+    actions: Optional[List[Dict[str, Any]]] = None
     enabled: Optional[bool] = None
 
 

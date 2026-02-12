@@ -33,6 +33,7 @@ function App() {
                 <Route index element={<GardensPage />} />
                 <Route path="hubs" element={<HubsPage />} />
                 <Route path="hubs/:hubId/devices" element={<ZigbeeDevicesPage />} />
+                <Route path="hubs/:hubId/automations" element={<AutomationEditor />} />
                 <Route path="admin" element={<AdminPage />} />
                 <Route path="automations" element={<AutomationEditor />} />
                 <Route path="garden/:gardenId" element={<OverviewPage />} />

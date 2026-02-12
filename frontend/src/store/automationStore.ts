@@ -1,25 +1,85 @@
 import { create } from 'zustand'
 import { api } from '../api/client'
 
-export interface AutomationTrigger {
+// --- Trigger Types ---
+export interface StateTrigger {
+    type: 'state'
     device_id: string
-    entity: string // e.g. "temperature", "illuminance", "contact"
-    operator: '>' | '<' | '==' | '!='
+    entity: string
+    operator: '>' | '<' | '==' | '!=' | '>=' | '<='
     value: number | string | boolean
 }
 
-export interface AutomationAction {
+export interface TimeTrigger {
+    type: 'time'
+    at: string // HH:MM:SS
+}
+
+export interface TimePatternTrigger {
+    type: 'time_pattern'
+    hours?: string  // e.g. "/2" for every 2 hours, "*" for any, or specific number
+    minutes?: number
+    seconds?: number
+}
+
+export type AutomationTrigger = StateTrigger | TimeTrigger | TimePatternTrigger
+
+// --- Condition Types ---
+export interface StateCondition {
+    type: 'state'
     device_id: string
-    entity: string // e.g. "state", "brightness"
+    entity: string
+    operator: '>' | '<' | '==' | '!=' | '>=' | '<='
     value: number | string | boolean
 }
 
+export type AutomationCondition = StateCondition
+
+// --- Action Types ---
+export interface DeviceAction {
+    type: 'device_action'
+    device_id: string
+    entity: string
+    value: number | string | boolean
+}
+
+export interface DelayAction {
+    type: 'delay'
+    seconds: number
+}
+
+export interface ChooseAction {
+    type: 'choose'
+    choices: {
+        conditions: AutomationCondition[]
+        sequence: AutomationAction[]
+    }[]
+    default: AutomationAction[]
+}
+
+export interface IfAction {
+    type: 'if'
+    conditions: AutomationCondition[]
+    then: AutomationAction[]
+    else: AutomationAction[]
+}
+
+export interface ConditionAction {
+    type: 'condition'
+    conditions: AutomationCondition[]
+}
+
+export type AutomationAction = DeviceAction | DelayAction | ChooseAction | IfAction | ConditionAction
+
+// --- Automation ---
 export interface Automation {
     id: string
     hub_id: string
     name: string
-    trigger: AutomationTrigger
-    action: AutomationAction
+    description?: string
+    triggers: AutomationTrigger[]
+    conditions: AutomationCondition[]
+    actions: AutomationAction[]
     enabled: boolean
 }
 
@@ -41,12 +101,6 @@ export const useAutomationStore = create<AutomationStore>((set) => ({
     fetchAutomations: async (hubId) => {
         set({ isLoading: true, error: null })
         try {
-            // If hubId is provided, use the hub-specific endpoint, else generic?
-            // API has GET /automations (all) and GET /hubs/{id}/automations (hub specific)
-            // Let's use generic list if no hubId, or filter if supported. 
-            // The backend /automations endpoint returns all. 
-            // The /hubs/{id}/automations endpoint returns specific.
-            // Let's support both or just use generic for now.
             const url = hubId ? `/api/hubs/${hubId}/automations` : '/api/automations'
             const response = await api.get(url)
             const data = Array.isArray(response.data) ? response.data : []
@@ -99,3 +153,49 @@ export const useAutomationStore = create<AutomationStore>((set) => ({
         }
     }
 }))
+
+// --- Helper functions ---
+export function createEmptyStateTrigger(): StateTrigger {
+    return { type: 'state', device_id: '', entity: '', operator: '>', value: 0 }
+}
+
+export function createEmptyTimeTrigger(): TimeTrigger {
+    return { type: 'time', at: '06:00:00' }
+}
+
+export function createEmptyTimePatternTrigger(): TimePatternTrigger {
+    return { type: 'time_pattern', hours: '/1', minutes: 0, seconds: 0 }
+}
+
+export function createEmptyCondition(): StateCondition {
+    return { type: 'state', device_id: '', entity: '', operator: '>', value: 0 }
+}
+
+export function createEmptyDeviceAction(): DeviceAction {
+    return { type: 'device_action', device_id: '', entity: '', value: '' }
+}
+
+export function createEmptyDelayAction(): DelayAction {
+    return { type: 'delay', seconds: 60 }
+}
+
+export function createEmptyChooseAction(): ChooseAction {
+    return {
+        type: 'choose',
+        choices: [{ conditions: [createEmptyCondition()], sequence: [createEmptyDeviceAction()] }],
+        default: []
+    }
+}
+
+export function createEmptyIfAction(): IfAction {
+    return {
+        type: 'if',
+        conditions: [createEmptyCondition()],
+        then: [createEmptyDeviceAction()],
+        else: []
+    }
+}
+
+export function createEmptyConditionAction(): ConditionAction {
+    return { type: 'condition', conditions: [createEmptyCondition()] }
+}

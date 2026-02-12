@@ -6,7 +6,7 @@ from app.api import auth_router, gardens_router, beds_router, crops_router, user
 from app.seed_crops import seed_database
 
 # Import all models to ensure they're registered with Base before create_all
-from app.models import User, Garden, GardenMember, Bed, Zone, Crop, CropPlacement
+from app.models import User, Garden, GardenMember, Bed, Zone, Crop, CropPlacement, Hub, ZigbeeDevice, Automation
 
 settings = get_settings()
 
