@@ -21,6 +21,12 @@ async def ws_loop(hub_id, access_token, mqtt_client, automation_engine=None):
     loop = asyncio.get_running_loop()
     set_event_loop(loop)
 
+    # Wire up automation engine with event loop and MQTT client
+    if automation_engine:
+        automation_engine.set_event_loop(loop)
+        if mqtt_client:
+            automation_engine.set_mqtt_client(mqtt_client)
+
     url = f"{WS_URL}/hubs/{hub_id}/ws?token={access_token}"
 
     async with aiohttp.ClientSession() as session:

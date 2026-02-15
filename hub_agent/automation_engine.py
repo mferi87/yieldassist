@@ -30,16 +30,26 @@ class AutomationEngine:
     - Multiple triggers (OR logic)
     - Multiple conditions (AND logic)
     - Sequential actions with control flow (choose, if-then, delay, condition)
+    - Async action execution with real delay support
+    - Per-automation cooldown to prevent retriggering
     """
 
     def __init__(self):
         self._rules = []
         self._device_states = {}  # Cache of last known device states
-        self._mqtt_publish_callback = None
+        self._mqtt_client = None
+        self._event_loop = None
+        self._running_automations = set()  # IDs of currently executing automations
         
-    def set_mqtt_publish_callback(self, callback):
-        """Set callback function to publish MQTT commands: callback(topic, payload)"""
-        self._mqtt_publish_callback = callback
+    def set_mqtt_client(self, mqtt_client):
+        """Set MQTT client for publishing commands directly."""
+        self._mqtt_client = mqtt_client
+
+    def set_event_loop(self, loop):
+        """Set the asyncio event loop for scheduling async action execution."""
+        self._event_loop = loop
+        # Start time trigger monitor task
+        loop.create_task(self._monitor_time_triggers())
 
     def load(self, automations):
         """
@@ -90,21 +100,129 @@ class AutomationEngine:
         self._device_states[ieee_address].update(state)
         
         # Evaluate triggers against this state change
-        return self._evaluate_on_state_change(ieee_address, state)
+        self._evaluate_on_state_change(ieee_address, state)
     
-    def _evaluate_on_state_change(self, ieee_address: str, state: dict) -> List[dict]:
+    def _monitor_time_triggers(self):
+        """Check time pattern triggers every second loop."""
+        import asyncio
+        async def _loop():
+            while True:
+                try:
+                    now = datetime.now()
+                    self._check_time_triggers(now)
+                    
+                    # Calculate sleep time to align with next second
+                    to_sleep = 1.0 - (now.microsecond / 1_000_000)
+                    await asyncio.sleep(to_sleep)
+                except Exception as e:
+                    logger.error(f"Error in time trigger monitor: {e}")
+                    await asyncio.sleep(1)
+        return _loop()
+
+    def _check_time_triggers(self, now: datetime):
+        """Evaluate time triggers for all rules against current time."""
+        for rule in self._rules:
+            rule_id = rule.get("id", rule.get("name", "unknown"))
+            
+            # Skip if this automation is already running (cooldown)
+            if rule_id in self._running_automations:
+                continue
+                
+            # Check if any time-based trigger matches
+            if self._matches_time_trigger(rule, now):
+                # Check conditions (AND logic)
+                if not self._check_conditions(rule):
+                    continue
+                    
+                logger.info(f"Time trigger matched for '{rule.get('name')}' — scheduling execution")
+                self._schedule_actions(rule_id, rule.get("name", "?"), rule.get("actions", []))
+
+    def _matches_time_trigger(self, rule: dict, now: datetime) -> bool:
+        """Check if any time-based trigger matches 'now'."""
+        triggers = rule.get("triggers", [])
+        for trigger in triggers:
+            t_type = trigger.get("type")
+            if t_type == "time_pattern":
+                if self._check_single_time_pattern(trigger, now):
+                    return True
+            elif t_type == "time":
+                if self._check_single_time_trigger(trigger, now):
+                    return True
+        return False
+
+    def _check_single_time_trigger(self, trigger: dict, now: datetime) -> bool:
+        """Check if a specific time trigger matches (HH:MM:SS)."""
+        at_time = trigger.get("at")
+        if not at_time:
+            return False
+            
+        current_time_str = now.strftime("%H:%M:%S")
+        
+        # Exact match required
+        return at_time == current_time_str
+
+    def _check_single_time_pattern(self, trigger: dict, now: datetime) -> bool:
+        """Check if a single time_pattern trigger matches."""
+        # Check hours, minutes, seconds. Default to wildcards if missing?? 
+        # Actually usually if missing it means 0 or *? 
+        # Home Assistant defaults: if omitted, it matches '*' for time_pattern? 
+        # No, HA docs say: "At least one of hours, minutes or seconds must be specified."
+        # If not specified, it matches *? No, HA matches * if specified as *.
+        # But here my UI defaults empty strings or numbers. 
+        # Let's assume omitted means '*' (match any) for now, or handled by UI sending '*'
+        
+        return (
+            self._match_time_part(trigger.get("hours"), now.hour) and
+            self._match_time_part(trigger.get("minutes"), now.minute) and
+            self._match_time_part(trigger.get("seconds"), now.second)
+        )
+
+    def _match_time_part(self, pattern: Any, current: int) -> bool:
+        """Match a time part (hour/minute/second) against a pattern."""
+        # Convert explicit int to string for consistent handling, or handle int directly
+        if pattern is None or pattern == "":
+            return True # Treat empty as wildcard? Or should it be 0? 
+                        # In my UI I used placeholders. The store initializes to strings.
+                        # If undefined in JSON, assuming wildcard makes sense for 'every' semantically 
+                        # but usually 'at 10:00' implies seconds=0 if omitted.
+                        # However, 'time_pattern' is powerful. 
+                        # Let's treat None/Empty as '*' (Any).
+            return True
+            
+        s_pattern = str(pattern).strip()
+        
+        if s_pattern == "*":
+            return True
+            
+        if s_pattern.startswith("/"):
+            try:
+                divisor = int(s_pattern[1:])
+                if divisor == 0: return False # Prevent division by zero
+                return current % divisor == 0
+            except ValueError:
+                pass
+        
+        # Exact match (number)
+        try:
+            return int(s_pattern) == current
+        except ValueError:
+            return False
+
+    def _evaluate_on_state_change(self, ieee_address: str, state: dict):
         """
         Evaluate all automations when a device state changes.
-        Returns list of MQTT actions to execute.
+        Triggered automations are scheduled for async execution.
         """
-        mqtt_actions = []
-        
         for rule in self._rules:
             try:
-                # Check if any trigger matches this state change (OR logic)
-                triggered = self._check_triggers(rule, ieee_address, state)
+                rule_id = rule.get("id", rule.get("name", "unknown"))
                 
-                if not triggered:
+                # Skip if this automation is already running (cooldown)
+                if rule_id in self._running_automations:
+                    continue
+                
+                # Check if any trigger matches this state change (OR logic)
+                if not self._check_triggers(rule, ieee_address, state):
                     continue
                 
                 # Check if all conditions are satisfied (AND logic)
@@ -112,16 +230,27 @@ class AutomationEngine:
                     logger.debug(f"Automation '{rule.get('name')}' triggered but conditions not met")
                     continue
                 
-                logger.info(f"Automation '{rule.get('name')}' triggered and conditions met")
+                logger.info(f"Automation '{rule.get('name')}' triggered and conditions met — scheduling execution")
                 
-                # Execute action sequence
-                actions = self._execute_action_sequence(rule.get("actions", []))
-                mqtt_actions.extend(actions)
+                # Schedule async action execution on the event loop
+                self._schedule_actions(rule_id, rule.get("name", "?"), rule.get("actions", []))
                 
             except Exception as e:
                 logger.error(f"Error evaluating automation '{rule.get('name', '?')}': {e}")
+    
+    def _schedule_actions(self, rule_id: str, rule_name: str, actions: List[dict]):
+        """Schedule async action execution on the event loop."""
+        if not self._event_loop:
+            logger.error("No event loop set — cannot execute actions asynchronously")
+            # Fallback: execute synchronously without delays
+            self._execute_actions_sync(actions)
+            return
         
-        return mqtt_actions
+        self._running_automations.add(rule_id)
+        asyncio.run_coroutine_threadsafe(
+            self._execute_actions_async(rule_id, rule_name, actions),
+            self._event_loop
+        )
     
     def _check_triggers(self, rule: dict, ieee_address: str, state: dict) -> bool:
         """Check if any trigger matches (OR logic)."""
@@ -208,63 +337,76 @@ class AutomationEngine:
         
         return False
     
-    def _execute_action_sequence(self, actions: List[dict]) -> List[dict]:
-        """
-        Execute a sequence of actions.
-        Returns list of MQTT commands to publish.
-        """
-        mqtt_commands = []
-        
+    async def _execute_actions_async(self, rule_id: str, rule_name: str, actions: List[dict]):
+        """Execute action sequence asynchronously, supporting real delays."""
+        try:
+            logger.info(f"▶ Starting action sequence for '{rule_name}'")
+            await self._run_action_list(actions)
+            logger.info(f"✔ Completed action sequence for '{rule_name}'")
+        except Exception as e:
+            logger.error(f"Error executing actions for '{rule_name}': {e}")
+        finally:
+            self._running_automations.discard(rule_id)
+
+    async def _run_action_list(self, actions: List[dict]):
+        """Run a list of actions sequentially (async)."""
         for action in actions:
             action_type = action.get("type")
             
             if action_type == "device_action":
-                cmd = self._build_device_action(action)
-                if cmd:
-                    mqtt_commands.append(cmd)
+                self._publish_device_action(action)
+            
+            elif action_type == "delay":
+                seconds = action.get("seconds", 0)
+                logger.info(f"⏳ Waiting {seconds}s...")
+                await asyncio.sleep(seconds)
+                logger.info(f"⏳ Delay complete")
             
             elif action_type == "choose":
-                # Choose block: test conditions and execute first matching choice
-                cmds = self._execute_choose(action)
-                mqtt_commands.extend(cmds)
+                await self._run_choose(action)
             
             elif action_type == "if":
-                # If-then-else block
-                cmds = self._execute_if(action)
-                mqtt_commands.extend(cmds)
+                await self._run_if(action)
             
             elif action_type == "condition":
-                # Test conditions and stop if not met
                 if not self._check_condition_action(action):
                     logger.info("Condition action failed, stopping sequence")
                     break
             
-            elif action_type == "delay":
-                # Delay handled via asyncio.sleep in async executor
-                # For now, just log it (async execution needed for real delays)
-                seconds = action.get("seconds", 0)
-                logger.info(f"Delay: {seconds}s (async execution needed)")
-            
             else:
                 logger.warning(f"Unknown action type: {action_type}")
-        
-        return mqtt_commands
+
+    def _execute_actions_sync(self, actions: List[dict]):
+        """Fallback synchronous execution (no delay support)."""
+        for action in actions:
+            action_type = action.get("type")
+            if action_type == "device_action":
+                self._publish_device_action(action)
+            elif action_type == "delay":
+                logger.warning(f"Delay skipped (no event loop): {action.get('seconds', 0)}s")
+            elif action_type == "condition":
+                if not self._check_condition_action(action):
+                    break
     
-    def _build_device_action(self, action: dict) -> Optional[dict]:
-        """Build an MQTT command from a device_action."""
+    def _publish_device_action(self, action: dict):
+        """Build and publish an MQTT command from a device_action."""
         device_id = action.get("device_id")
         entity = action.get("entity", "state")
         value = action.get("value")
         
         if not device_id or value is None:
-            return None
+            return
         
-        return {
-            "friendly_name": device_id,
-            "command": {entity: value}
-        }
+        if not self._mqtt_client:
+            logger.error("No MQTT client set — cannot publish action")
+            return
+        
+        topic = f"zigbee2mqtt/{device_id}/set"
+        payload = json.dumps({entity: value})
+        logger.info(f"Automation action → {topic}: {payload}")
+        self._mqtt_client.publish(topic, payload)
     
-    def _execute_choose(self, action: dict) -> List[dict]:
+    async def _run_choose(self, action: dict):
         """Execute choose block: test conditions and run first matching choice."""
         choices = action.get("choices", [])
         default = action.get("default", [])
@@ -272,22 +414,22 @@ class AutomationEngine:
         for choice in choices:
             choice_conditions = choice.get("conditions", [])
             if self._check_conditions({"conditions": choice_conditions}):
-                # This choice matches, execute its sequence
-                return self._execute_action_sequence(choice.get("sequence", []))
+                await self._run_action_list(choice.get("sequence", []))
+                return
         
         # No choice matched, execute default
-        return self._execute_action_sequence(default)
+        await self._run_action_list(default)
     
-    def _execute_if(self, action: dict) -> List[dict]:
+    async def _run_if(self, action: dict):
         """Execute if-then-else block."""
         conditions = action.get("conditions", [])
         then_actions = action.get("then", [])
         else_actions = action.get("else", [])
         
         if self._check_conditions({"conditions": conditions}):
-            return self._execute_action_sequence(then_actions)
+            await self._run_action_list(then_actions)
         else:
-            return self._execute_action_sequence(else_actions)
+            await self._run_action_list(else_actions)
     
     def _check_condition_action(self, action: dict) -> bool:
         """Check if condition action passes."""

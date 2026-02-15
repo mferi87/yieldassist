@@ -17,9 +17,9 @@ export interface TimeTrigger {
 
 export interface TimePatternTrigger {
     type: 'time_pattern'
-    hours?: string  // e.g. "/2" for every 2 hours, "*" for any, or specific number
-    minutes?: number
-    seconds?: number
+    hours?: string  // e.g. "/2" for every 2 hours, "*" for any, or specific value
+    minutes?: string
+    seconds?: string
 }
 
 export type AutomationTrigger = StateTrigger | TimeTrigger | TimePatternTrigger
@@ -164,7 +164,7 @@ export function createEmptyTimeTrigger(): TimeTrigger {
 }
 
 export function createEmptyTimePatternTrigger(): TimePatternTrigger {
-    return { type: 'time_pattern', hours: '/1', minutes: 0, seconds: 0 }
+    return { type: 'time_pattern', hours: '*', minutes: '/1', seconds: '0' }
 }
 
 export function createEmptyCondition(): StateCondition {

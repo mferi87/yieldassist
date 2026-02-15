@@ -461,15 +461,22 @@ function TimeTriggerFields({ trigger, onChange }: { trigger: TimeTrigger; onChan
 
 function TimePatternFields({ trigger, onChange }: { trigger: TimePatternTrigger; onChange: (t: AutomationTrigger) => void }) {
     return (
-        <div className="flex gap-3">
-            <div>
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Every (hours)</label>
-                <input type="text" value={trigger.hours || ''} onChange={e => onChange({ ...trigger, hours: e.target.value })} className="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-surface text-sm text-gray-900 dark:text-gray-100" placeholder="/2" />
+        <div>
+            <div className="flex gap-3 mb-2">
+                <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Hours</label>
+                    <input type="text" value={trigger.hours ?? ''} onChange={e => onChange({ ...trigger, hours: e.target.value })} className="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-surface text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400" placeholder="*" />
+                </div>
+                <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Minutes</label>
+                    <input type="text" value={trigger.minutes ?? ''} onChange={e => onChange({ ...trigger, minutes: e.target.value })} className="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-surface text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400" placeholder="/5" />
+                </div>
+                <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Seconds</label>
+                    <input type="text" value={trigger.seconds ?? ''} onChange={e => onChange({ ...trigger, seconds: e.target.value })} className="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-surface text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400" placeholder="0" />
+                </div>
             </div>
-            <div>
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">At minute</label>
-                <input type="number" min={0} max={59} value={trigger.minutes ?? 0} onChange={e => onChange({ ...trigger, minutes: parseInt(e.target.value) || 0 })} className="w-20 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-surface text-sm text-gray-900 dark:text-gray-100" />
-            </div>
+            <p className="text-xs text-gray-400">Use <code>*</code> for any, <code>/n</code> for every n, or specific numbers (e.g. <code>/15</code> for every 15 mins).</p>
         </div>
     )
 }

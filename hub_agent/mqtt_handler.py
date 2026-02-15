@@ -115,16 +115,9 @@ def _handle_device_state(topic, payload):
     msg = {"ieee_address": ieee, "state": state_payload}
     _schedule_ws_send("device_state_update", msg)
 
-    # Evaluate automations (engine caches state and returns MQTT actions)
-    if _automation_engine and _mqtt_client_ref:
-        actions = _automation_engine.update_device_state(ieee, state_payload)
-        for action in actions:
-            act_friendly = action.get("friendly_name")
-            act_command = action.get("command")
-            if act_friendly and act_command:
-                act_topic = f"zigbee2mqtt/{act_friendly}/set"
-                logger.info(f"Automation action → {act_topic}: {act_command}")
-                _mqtt_client_ref.publish(act_topic, json.dumps(act_command))
+    # Evaluate automations (engine handles MQTT publishing internally)
+    if _automation_engine:
+        _automation_engine.update_device_state(ieee, state_payload)
 
 
 def create_mqtt_client(automation_engine=None):

@@ -1,0 +1,35 @@
+[
+  {
+    "id": "15219862-0996-4cce-8981-9b5aa1b9509f",
+    "name": "irrigation on",
+    "description": "",
+    "triggers": [
+      {
+        "type": "time_pattern",
+        "hours": "*",
+        "minutes": "*",
+        "seconds": "0"
+      }
+    ],
+    "conditions": [],
+    "actions": [
+      {
+        "type": "device_action",
+        "device_id": "Valve test",
+        "entity": "state",
+        "value": "ON"
+      },
+      {
+        "type": "delay",
+        "seconds": 10
+      },
+      {
+        "type": "device_action",
+        "device_id": "Valve test",
+        "entity": "state",
+        "value": "OFF"
+      }
+    ],
+    "enabled": true
+  }
+]
