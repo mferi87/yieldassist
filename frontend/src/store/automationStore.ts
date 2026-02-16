@@ -22,7 +22,13 @@ export interface TimePatternTrigger {
     seconds?: string
 }
 
-export type AutomationTrigger = StateTrigger | TimeTrigger | TimePatternTrigger
+export interface DeviceStateChangedTrigger {
+    type: 'device_state_changed'
+    device_id: string
+    entity: string
+}
+
+export type AutomationTrigger = StateTrigger | TimeTrigger | TimePatternTrigger | DeviceStateChangedTrigger
 
 // --- Condition Types ---
 export interface StateCondition {
@@ -165,6 +171,10 @@ export function createEmptyTimeTrigger(): TimeTrigger {
 
 export function createEmptyTimePatternTrigger(): TimePatternTrigger {
     return { type: 'time_pattern', hours: '*', minutes: '/1', seconds: '0' }
+}
+
+export function createEmptyDeviceStateChangedTrigger(): DeviceStateChangedTrigger {
+    return { type: 'device_state_changed', device_id: '', entity: '' }
 }
 
 export function createEmptyCondition(): StateCondition {

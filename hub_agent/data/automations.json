@@ -5,29 +5,56 @@
     "description": "",
     "triggers": [
       {
-        "type": "time_pattern",
-        "hours": "*",
-        "minutes": "*",
-        "seconds": "0"
+        "type": "device_state_changed",
+        "device_id": "0xa4c138b8bf7c19b9",
+        "entity": "soil_moisture"
       }
     ],
     "conditions": [],
     "actions": [
       {
-        "type": "device_action",
-        "device_id": "Valve test",
-        "entity": "state",
-        "value": "ON"
-      },
-      {
-        "type": "delay",
-        "seconds": 10
-      },
-      {
-        "type": "device_action",
-        "device_id": "Valve test",
-        "entity": "state",
-        "value": "OFF"
+        "type": "choose",
+        "choices": [
+          {
+            "conditions": [
+              {
+                "type": "state",
+                "device_id": "0xa4c138b8bf7c19b9",
+                "entity": "soil_moisture",
+                "operator": "<",
+                "value": 30
+              }
+            ],
+            "sequence": [
+              {
+                "type": "device_action",
+                "device_id": "Valve test",
+                "entity": "state",
+                "value": "ON"
+              }
+            ]
+          },
+          {
+            "conditions": [
+              {
+                "type": "state",
+                "device_id": "0xa4c138b8bf7c19b9",
+                "entity": "soil_moisture",
+                "operator": ">",
+                "value": 80
+              }
+            ],
+            "sequence": [
+              {
+                "type": "device_action",
+                "device_id": "Valve test",
+                "entity": "state",
+                "value": "OFF"
+              }
+            ]
+          }
+        ],
+        "default": []
       }
     ],
     "enabled": true

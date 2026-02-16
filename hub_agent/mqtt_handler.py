@@ -42,6 +42,8 @@ def on_connect(client, userdata, flags, rc):
     logger.info(f"Connected to MQTT Broker with result code {rc}")
     client.subscribe("zigbee2mqtt/bridge/devices")
     client.subscribe("zigbee2mqtt/#")
+    # Explicitly request device list to populate device_map
+    client.publish("zigbee2mqtt/bridge/request/devices", "{}", retain=False)
 
 
 def on_message(client, userdata, msg):
@@ -50,7 +52,7 @@ def on_message(client, userdata, msg):
         payload = msg.payload.decode()
         logger.info(f"MQTT Received: {topic} | {payload[:100]}...")
 
-        if topic == "zigbee2mqtt/bridge/devices":
+        if topic == "zigbee2mqtt/bridge/devices" or topic == "zigbee2mqtt/bridge/response/devices":
             _handle_device_discovery(payload)
         else:
             _handle_device_state(topic, payload)
@@ -62,7 +64,13 @@ def on_message(client, userdata, msg):
 def _handle_device_discovery(payload):
     """Process device list from zigbee2mqtt bridge."""
     global device_map
-    devices = json.loads(payload)
+    parsed = json.loads(payload)
+    
+    # Handle both direct list and response wrapper format
+    if isinstance(parsed, dict) and "data" in parsed:
+        devices = parsed["data"]
+    else:
+        devices = parsed
 
     # Transform to backend format
     backend_devices = []

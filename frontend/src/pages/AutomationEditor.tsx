@@ -23,6 +23,8 @@ import {
     createEmptyChooseAction,
     createEmptyIfAction,
     createEmptyConditionAction,
+    createEmptyDeviceStateChangedTrigger,
+    type DeviceStateChangedTrigger,
 } from '../store/automationStore'
 import { useDeviceStore, type ZigbeeDevice } from '../store/deviceStore'
 import { useHubStore } from '../store/hubStore'
@@ -385,6 +387,7 @@ function TriggerCard({ trigger, devices, onChange, onRemove, canRemove }: {
     const changeTriggerType = (type: string) => {
         setTriggerType(type as any)
         if (type === 'state') onChange(createEmptyStateTrigger())
+        else if (type === 'device_state_changed') onChange(createEmptyDeviceStateChangedTrigger())
         else if (type === 'time') onChange(createEmptyTimeTrigger())
         else if (type === 'time_pattern') onChange(createEmptyTimePatternTrigger())
     }
@@ -394,7 +397,8 @@ function TriggerCard({ trigger, devices, onChange, onRemove, canRemove }: {
             <div className="flex items-center gap-2 mb-3">
                 <GripVertical className="w-4 h-4 text-gray-300 dark:text-gray-600" />
                 <select value={triggerType} onChange={e => changeTriggerType(e.target.value)} className="text-sm font-medium bg-transparent border-none outline-none text-gray-700 dark:text-gray-300 cursor-pointer">
-                    <option value="state">🔌 Device state change</option>
+                    <option value="state">🔌 Device state matches</option>
+                    <option value="device_state_changed">⚡ Device updated</option>
                     <option value="time">🕐 At a specific time</option>
                     <option value="time_pattern">🔄 Time pattern (periodic)</option>
                 </select>
@@ -402,8 +406,34 @@ function TriggerCard({ trigger, devices, onChange, onRemove, canRemove }: {
             </div>
 
             {trigger.type === 'state' && <StateTriggerFields trigger={trigger} devices={devices} onChange={onChange} />}
+            {trigger.type === 'device_state_changed' && <DeviceStateChangedTriggerFields trigger={trigger as DeviceStateChangedTrigger} devices={devices} onChange={onChange} />}
             {trigger.type === 'time' && <TimeTriggerFields trigger={trigger as TimeTrigger} onChange={onChange} />}
             {trigger.type === 'time_pattern' && <TimePatternFields trigger={trigger as TimePatternTrigger} onChange={onChange} />}
+        </div>
+    )
+}
+
+function DeviceStateChangedTriggerFields({ trigger, devices, onChange }: { trigger: DeviceStateChangedTrigger; devices: ZigbeeDevice[]; onChange: (t: AutomationTrigger) => void }) {
+    const device = devices.find(d => d.ieee_address === trigger.device_id || d.friendly_name === trigger.device_id)
+    const props = getDeviceProperties(device)
+
+    return (
+        <div className="space-y-2">
+            <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Device</label>
+                <select value={trigger.device_id} onChange={e => onChange({ ...trigger, device_id: e.target.value, entity: '' })} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-surface text-sm text-gray-900 dark:text-gray-100">
+                    <option value="">Select device</option>
+                    {devices.map(d => <option key={d.id} value={d.ieee_address}>{d.friendly_name || d.ieee_address}</option>)}
+                </select>
+            </div>
+            <div>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Property (Optional)</label>
+                <select value={trigger.entity} onChange={e => onChange({ ...trigger, entity: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-surface text-sm text-gray-900 dark:text-gray-100">
+                    <option value="">Any property</option>
+                    {props.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Triggers whenever this property is updated, regardless of value.</p>
+            </div>
         </div>
     )
 }

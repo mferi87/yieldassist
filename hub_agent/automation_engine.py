@@ -262,9 +262,24 @@ class AutomationEngine:
             if trigger_type == "state":
                 if self._check_state_trigger(trigger, ieee_address, state):
                     return True
+            elif trigger_type == "device_state_changed":
+                if self._check_device_state_changed_trigger(trigger, ieee_address, state):
+                    return True
             # Time triggers handled separately by scheduler
             
         return False
+    
+    def _check_device_state_changed_trigger(self, trigger: dict, ieee_address: str, state: dict) -> bool:
+        """Check if a device state changed trigger matches."""
+        if trigger.get("device_id") != ieee_address:
+            return False
+        
+        entity = trigger.get("entity")
+        # If entity is specified, it must be present in the state update (meaning it changed/updated)
+        if entity and entity not in state:
+            return False
+            
+        return True
     
     def _check_state_trigger(self, trigger: dict, ieee_address: str, state: dict) -> bool:
         """Check if a state trigger matches."""
